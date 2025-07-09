@@ -89,7 +89,7 @@ const setOptions =
 
 const resetCard =
   (set: ZustandSet<CardState>): CardActions['resetCard'] =>
-  () => set({...initialCardState, loading: false});
+  () => set({...initialCardState, loading: false, userCard: undefined});
 
 export const createActions = (
   set: ZustandSet<CardState>,
