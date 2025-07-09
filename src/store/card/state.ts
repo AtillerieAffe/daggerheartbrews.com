@@ -1,4 +1,4 @@
-import { CardState } from "./types";
+import { CardState } from './types';
 
 export const initialCardState: CardState = {
   loading: true,

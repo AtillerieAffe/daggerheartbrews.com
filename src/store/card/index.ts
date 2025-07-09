@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { CardState, CardStore } from './types';
+import type { CardStore } from './types';
 import { createActions } from './actions';
 import { createEffects } from './effects';
 import { createComputed } from './computed';
