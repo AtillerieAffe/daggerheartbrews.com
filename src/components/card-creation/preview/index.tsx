@@ -21,6 +21,7 @@ import {
   Thresholds,
 } from './template/core';
 import { SettingsForm } from '../forms';
+import { useFileUpload } from '@/hooks/use-file-upload';
 
 type CardPreviewProps = React.ComponentProps<'div'> & {
   card: CardDetails;
@@ -146,6 +147,7 @@ export const CardCreationPreview = () => {
   const { card, settings } = useCardStore();
   const { setPreviewRef, resetCard } = useCardActions();
   const { downloadImage, saveCardPreview } = useCardEffects();
+  const [{}, { clearFiles }] = useFileUpload();
   const [pending, setPending] = React.useState(false);
 
   const ref = React.useRef<HTMLDivElement>(null);
@@ -171,6 +173,7 @@ export const CardCreationPreview = () => {
 
   const handleClickResetCard = () => {
     resetCard();
+    clearFiles();
   };
 
   return (
