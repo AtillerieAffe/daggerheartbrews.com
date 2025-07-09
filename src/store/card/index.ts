@@ -4,38 +4,10 @@ import type { CardState, CardStore } from './types';
 import { createActions } from './actions';
 import { createEffects } from './effects';
 import { createComputed } from './computed';
-
-const initialState: CardState = {
-  loading: true,
-  settings: {
-    border: true,
-    boldRulesText: true,
-    artist: true,
-    credits: true,
-    placeholderImage: true,
-  },
-  card: {
-    name: '',
-    type: 'ancestry',
-    image: undefined,
-    text: '',
-    artist: '',
-    credits: 'Daggerheart™ Compatible. Terms at Daggerheart.com',
-    subtype: '',
-    subtitle: '',
-    level: 1,
-    stress: 0,
-    evasion: 0,
-    thresholds: [5, 12],
-    domainPrimary: 'custom',
-    domainPrimaryColor: '#000000',
-    domainSecondary: 'custom',
-    domainSecondaryColor: '#000000',
-  },
-};
+import { initialCardState } from './state';
 
 export const useCardStore = create<CardStore>((set, get) => ({
-  ...initialState,
+  ...initialCardState,
   computed: createComputed(get),
   actions: createActions(set, get),
   effects: createEffects(set, get),

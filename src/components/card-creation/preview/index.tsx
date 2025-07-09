@@ -144,7 +144,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
 export const CardCreationPreview = () => {
   const router = useRouter();
   const { card, settings } = useCardStore();
-  const { setPreviewRef } = useCardActions();
+  const { setPreviewRef, resetCard } = useCardActions();
   const { downloadImage, saveCardPreview } = useCardEffects();
   const [pending, setPending] = React.useState(false);
 
@@ -169,10 +169,21 @@ export const CardCreationPreview = () => {
     }
   };
 
+  const handleClickResetCard = () => {
+    resetCard();
+  }
+
   return (
     <div className='flex flex-col items-center space-y-2'>
       <CardPreview ref={ref} card={card} settings={settings} />
       <div className='flex w-full gap-2'>
+        <Button
+          className='grow'
+          variant='destructive'
+          onClick={handleClickResetCard}
+        >
+          Reset
+        </Button>
         <Button className='grow' onClick={downloadImage}>
           Export as PNG
         </Button>

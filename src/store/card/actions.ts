@@ -1,6 +1,7 @@
 import type { CardDetails, CardType } from '@/lib/types';
 import type { ZustandGet, ZustandSet } from '../types';
 import type { CardActions, CardState } from './types';
+import { initialCardState } from './state';
 
 const setCardTypeDefaults =
   (set: ZustandSet<CardState>, get: ZustandGet<CardState>) =>
@@ -86,6 +87,10 @@ const setOptions =
   ({ domains, classes }) =>
     set({ domains, classes });
 
+const resetCard =
+  (set: ZustandSet<CardState>): CardActions['resetCard'] =>
+  () => set({...initialCardState, loading: false});
+
 export const createActions = (
   set: ZustandSet<CardState>,
   get: ZustandGet<CardState>,
@@ -98,4 +103,5 @@ export const createActions = (
   setUserCard: setUserCard(set),
   setSettings: setSettings(set),
   setOptions: setOptions(set),
+  resetCard: resetCard(set),
 });
