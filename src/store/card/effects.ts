@@ -51,11 +51,13 @@ const saveCardPreview =
   (get: ZustandGet<CardStore>): CardEffects['saveCardPreview'] =>
   async () => {
     const { card, userCard } = get();
+    // Do not send background-only client fields to the API
+    const { backgroundImage: _bg, ...cardForServer } = card as any;
     const res = await fetch(
       `/api/card-preview/${userCard?.cardPreviewId && card.id && userCard?.cardPreviewId === card.id ? card.id : ''}`,
       {
         method: 'POST',
-        body: JSON.stringify({ card, userCard }),
+        body: JSON.stringify({ card: cardForServer, userCard }),
       },
     );
     const data = await res.json();

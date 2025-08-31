@@ -49,11 +49,46 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         {card.type === 'domain' && <Stress stress={card.stress} />}
         {card.type === 'class' && <Evasion evasion={card.evasion} />}
         {card.type === 'equipment' && <Equipment />}
-        <div className='overflow-hidden'>
+        <div className='relative overflow-hidden'>
+          {/* Background image when foreground exists: layer behind */}
+          {card.image && card.backgroundImage ? (
+            <img
+              className='absolute inset-0 z-0 h-full w-full object-cover'
+              src={card.backgroundImage}
+              alt='Background'
+            />
+          ) : null}
           {card.image ? (
             <img
-              className='object-center-top -z-10 w-full object-cover'
+              className='relative z-0 w-full object-cover'
               src={card.image}
+              style={{
+                // Combine translateY, scale and rotation for preview/exports.
+                transform: `translateY(${settings.imageOffsetY ?? 0}px) scale(${(settings.imageScale ?? 100) / 100}) rotate(${settings.imageRotation ?? 0}deg)`,
+                transformOrigin: 'center',
+                objectPosition: 'center',
+                filter: (() => {
+                  if (!settings.imageGlow) return undefined;
+                  const hex = (settings.imageGlowColor ?? '#ffffff').replace('#', '');
+                  const r = parseInt(hex.length === 3 ? hex[0] + hex[0] : hex.slice(0, 2), 16);
+                  const g = parseInt(hex.length === 3 ? hex[1] + hex[1] : hex.slice(2, 4), 16);
+                  const b = parseInt(hex.length === 3 ? hex[2] + hex[2] : hex.slice(4, 6), 16);
+                  const strength = Math.max(0, Math.min(1, settings.imageGlowStrength ?? 0.7));
+                  const radius = Math.max(0, settings.imageGlowRadius ?? 12);
+                  const r1 = Math.round(radius * 0.6);
+                  const r2 = radius;
+                  const a1 = (0.55 * strength).toFixed(3);
+                  const a2 = (0.35 * strength).toFixed(3);
+                  return `drop-shadow(0 0 ${r1}px rgba(${r},${g},${b},${a1})) drop-shadow(0 0 ${r2}px rgba(${r},${g},${b},${a2}))`;
+                })(),
+              }}
+            />
+          ) : card.backgroundImage ? (
+            // Background only: render normally to set height
+            <img
+              className='w-full object-cover'
+              src={card.backgroundImage}
+              alt='Background'
             />
           ) : settings.placeholderImage ? (
             <div className='flex h-[250px] w-full items-center justify-center'>

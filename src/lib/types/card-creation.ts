@@ -41,6 +41,20 @@ export type CardSettings = {
   artist: boolean;
   credits: boolean;
   placeholderImage: boolean;
+  // Percentage scale for preview image (e.g., 100 = 100%)
+  imageScale?: number;
+  // Rotation in degrees for preview image
+  imageRotation?: number;
+  // Vertical offset in pixels for preview image
+  imageOffsetY?: number;
+  // Toggle a glow around the foreground image
+  imageGlow?: boolean;
+  // Glow color (hex)
+  imageGlowColor?: string;
+  // Glow blur radius (px)
+  imageGlowRadius?: number;
+  // Glow strength/intensity (0-1)
+  imageGlowStrength?: number;
 };
 
 export type CardDetails = {
@@ -48,6 +62,7 @@ export type CardDetails = {
   name: string;
   type: CardType;
   image?: string;
+  backgroundImage?: string;
   text?: string;
   artist?: string;
   credits?: string;

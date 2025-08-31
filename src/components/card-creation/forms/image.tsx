@@ -66,16 +66,27 @@ const getCroppedImage = async (
 
 export const ImageForm = () => {
   const {
-    card: { image },
+    card: { image, backgroundImage },
   } = useCardStore();
   const { setCardDetails } = useCardActions();
+  // Foreground image upload
   const [{ files }, { removeFile, openFileDialog, getInputProps }] =
     useFileUpload({ accept: 'image/*' });
+  // Background image upload
+  const [
+    { files: bgFiles },
+    { removeFile: removeBgFile, openFileDialog: openBgDialog, getInputProps: getBgInputProps },
+  ] = useFileUpload({ accept: 'image/*' });
   const [file] = files;
+  const [bgFile] = bgFiles;
 
   React.useEffect(() => {
     setCardDetails({ image: file?.preview || undefined });
   }, [file]);
+
+  React.useEffect(() => {
+    setCardDetails({ backgroundImage: bgFile?.preview || undefined });
+  }, [bgFile]);
 
   const handleCropChange = async (area: Area | null) => {
     if (area && file?.preview) {
@@ -84,6 +95,18 @@ export const ImageForm = () => {
         const cropped = await fileToBase64(blob);
         if (image !== cropped) {
           setCardDetails({ image: cropped });
+        }
+      }
+    }
+  };
+
+  const handleBgCropChange = async (area: Area | null) => {
+    if (area && bgFile?.preview) {
+      const blob = await getCroppedImage(bgFile.preview, area);
+      if (blob) {
+        const cropped = await fileToBase64(blob);
+        if (backgroundImage !== cropped) {
+          setCardDetails({ backgroundImage: cropped });
         }
       }
     }
@@ -143,6 +166,65 @@ export const ImageForm = () => {
               className='h-64 rounded'
               image={file.preview}
               onCropChange={handleCropChange}
+            >
+              <ImageCropperImage />
+              <ImageCropperArea />
+            </ImageCropper>
+          ) : null}
+        </CollapsibleContent>
+
+        {/* Background Image */}
+        <div className='mt-4 flex flex-col gap-2'>
+          <Button
+            variant='outline'
+            className='h-10 bg-white'
+            onClick={openBgDialog}
+          >
+            <UploadIcon className='size-3' />
+            Add Background Image
+          </Button>
+          <input
+            {...getBgInputProps()}
+            className='sr-only'
+            aria-label='Upload background image file'
+            tabIndex={-1}
+          />
+          {bgFile ? (
+            <div className='dark:bg-input/30 flex items-center justify-between gap-2 rounded-md border bg-white p-2'>
+              <div className='flex items-center gap-4 overflow-hidden'>
+                <div className='bg-accent aspect-square shrink-0 rounded'>
+                  <img
+                    className='size-10 rounded-[inherit] object-cover'
+                    src={bgFile.preview}
+                    alt={bgFile.file.name}
+                  />
+                </div>
+                <div>
+                  <p className='truncate text-sm font-medium'>
+                    {bgFile.file.name}
+                  </p>
+                  <p className='text-muted-foreground text-sm'>
+                    {formatBytes(bgFile.file.size)}
+                  </p>
+                </div>
+              </div>
+              <Button
+                size='icon'
+                variant='ghost'
+                onClick={() => removeBgFile(bgFile.id)}
+                aria-label='Remove background file'
+              >
+                <X aria-hidden='true' />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+        <CollapsibleContent>
+          {bgFile?.preview ? (
+            <ImageCropper
+              className='h-64 rounded'
+              image={bgFile.preview}
+              onCropChange={handleBgCropChange}
             >
               <ImageCropperImage />
               <ImageCropperArea />

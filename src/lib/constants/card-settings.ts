@@ -6,4 +6,11 @@ export const initialSettings: CardSettings = {
   artist: true,
   credits: true,
   placeholderImage: true,
+  imageScale: 100,
+  imageRotation: 0,
+  imageOffsetY: 0,
+  imageGlow: false,
+  imageGlowColor: '#ffffff',
+  imageGlowRadius: 12,
+  imageGlowStrength: 0.7,
 };

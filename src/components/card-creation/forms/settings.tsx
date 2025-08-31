@@ -53,6 +53,144 @@ export const SettingsForm = () => {
             }}
           />
         </div>
+        {/* Image size slider */}
+        <div className='mt-3 space-y-1'>
+          <label htmlFor='image-size' className='text-sm font-medium'>
+            Image size
+          </label>
+          <div className='flex items-center gap-3'>
+            <input
+              id='image-size'
+              type='range'
+              min={40}
+              max={140}
+              step={1}
+              value={settings.imageScale ?? 100}
+              onChange={(e) => setSettings({ imageScale: Number(e.target.value) })}
+              className='w-full'
+            />
+            <span className='w-10 text-right text-sm tabular-nums'>
+              {(settings.imageScale ?? 100)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Image rotation slider */}
+        <div className='mt-3 space-y-1'>
+          <label htmlFor='image-rotation' className='text-sm font-medium'>
+            Image rotation
+          </label>
+          <div className='flex items-center gap-3'>
+            <input
+              id='image-rotation'
+              type='range'
+              min={-180}
+              max={180}
+              step={1}
+              value={settings.imageRotation ?? 0}
+              onChange={(e) => setSettings({ imageRotation: Number(e.target.value) })}
+              className='w-full'
+            />
+            <span className='w-12 text-right text-sm tabular-nums'>
+              {(settings.imageRotation ?? 0)}°
+            </span>
+          </div>
+        </div>
+
+        {/* Image vertical offset slider */}
+        <div className='mt-3 space-y-1'>
+          <label htmlFor='image-offset-y' className='text-sm font-medium'>
+            Image vertical offset
+          </label>
+          <div className='flex items-center gap-3'>
+            <input
+              id='image-offset-y'
+              type='range'
+              min={-200}
+              max={200}
+              step={1}
+              value={settings.imageOffsetY ?? 0}
+              onChange={(e) => setSettings({ imageOffsetY: Number(e.target.value) })}
+              className='w-full'
+            />
+            <span className='w-14 text-right text-sm tabular-nums'>
+              {(settings.imageOffsetY ?? 0)}px
+            </span>
+          </div>
+        </div>
+
+        {/* Glow toggle */}
+        <div className='mt-3'>
+          <FormCheckbox
+            id='image-glow'
+            label='Glow around image?'
+            checked={!!settings.imageGlow}
+            onCheckedChange={(v) =>
+              v !== 'indeterminate' && setSettings({ imageGlow: v })
+            }
+          />
+        </div>
+
+        {settings.imageGlow ? (
+          <div className='mt-2 grid grid-cols-2 gap-3'>
+            <div className='space-y-1'>
+              <label htmlFor='glow-color' className='text-sm font-medium'>
+                Glow color
+              </label>
+              <input
+                id='glow-color'
+                type='color'
+                value={settings.imageGlowColor ?? '#ffffff'}
+                onChange={(e) => setSettings({ imageGlowColor: e.target.value })}
+                className='h-9 w-16 cursor-pointer rounded border'
+              />
+            </div>
+
+            <div className='space-y-1'>
+              <label htmlFor='glow-strength' className='text-sm font-medium'>
+                Glow strength
+              </label>
+              <div className='flex items-center gap-3'>
+                <input
+                  id='glow-strength'
+                  type='range'
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={Math.round((settings.imageGlowStrength ?? 0.7) * 100)}
+                  onChange={(e) =>
+                    setSettings({ imageGlowStrength: Number(e.target.value) / 100 })
+                  }
+                  className='w-full'
+                />
+                <span className='w-10 text-right text-sm tabular-nums'>
+                  {Math.round((settings.imageGlowStrength ?? 0.7) * 100)}%
+                </span>
+              </div>
+            </div>
+
+            <div className='col-span-2 space-y-1'>
+              <label htmlFor='glow-radius' className='text-sm font-medium'>
+                Glow radius
+              </label>
+              <div className='flex items-center gap-3'>
+                <input
+                  id='glow-radius'
+                  type='range'
+                  min={0}
+                  max={40}
+                  step={1}
+                  value={settings.imageGlowRadius ?? 12}
+                  onChange={(e) => setSettings({ imageGlowRadius: Number(e.target.value) })}
+                  className='w-full'
+                />
+                <span className='w-10 text-right text-sm tabular-nums'>
+                  {(settings.imageGlowRadius ?? 12)}px
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </CollapsibleContent>
     </FormContainer>
   );
