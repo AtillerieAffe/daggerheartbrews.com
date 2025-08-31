@@ -88,6 +88,21 @@ export const PersonalCard: React.FC<PersonalCardProps> = ({
       setVisibility(!nextVisibility);
     }
   };
+  const deleteCard = async () => {
+    try {
+      const res = await fetch(`/api/community/cards/${userCard.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw Error('Something went wrong');
+      }
+      toast.success('Success');
+    } catch (e) {
+      toast.error('Something went wrong. Unable to delete card.');
+    }
+    router.refresh();
+  };
   return (
     <div className='bg-card rounded-lg border p-4' {...props}>
       <div className='flex items-start'>
@@ -127,6 +142,9 @@ export const PersonalCard: React.FC<PersonalCardProps> = ({
           </ResponsiveDialog>
           <Button variant='secondary' onClick={handleTemplate}>
             Edit
+          </Button>
+          <Button variant='destructive' onClick={deleteCard}>
+            Delete
           </Button>
         </div>
       </div>
@@ -179,6 +197,21 @@ export const PersonalAdversary: React.FC<PersonalAdversaryProps> = ({
       setVisibility(!nextVisibility);
     }
   };
+  const deleteAdversary = async () => {
+    try {
+      const res = await fetch(`/api/community/adversary/${userAdversary.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw Error('Something went wrong');
+      }
+      toast.success('Success');
+    } catch (e) {
+      toast.error('Something went wrong. Unable to delete adversary.');
+    }
+    router.refresh();
+  };
   return (
     <div className='bg-card rounded-lg border p-4' {...props}>
       <div className='flex items-start'>
@@ -209,6 +242,9 @@ export const PersonalAdversary: React.FC<PersonalAdversaryProps> = ({
           </ResponsiveDialog>
           <Button variant='secondary' onClick={handleTemplate}>
             Use as template
+          </Button>
+          <Button variant='destructive' onClick={deleteAdversary}>
+            Delete
           </Button>
         </div>
       </div>

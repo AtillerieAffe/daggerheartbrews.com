@@ -1,6 +1,7 @@
 export const cardTypes = [
   'ancestry',
   'community',
+  'transformation',
   'equipment',
   'domain',
   'class',

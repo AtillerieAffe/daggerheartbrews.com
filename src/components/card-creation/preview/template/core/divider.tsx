@@ -8,13 +8,15 @@ import { cn, getBrightness } from '@/lib/utils';
 const imgStyle = (type: CardType): React.CSSProperties => {
   switch (type) {
     case 'ancestry':
-      return { top: '-31px', height: '65px', objectFit: 'contain' };
+      return { top: '-34px', height: '65px', objectFit: 'contain' };
     case 'community':
       return { top: '-76px', height: '80px' };
     case 'equipment':
       return { top: '-76px', height: '80px' };
     case 'domain':
       return { top: '-14px', height: '30px' };
+    case 'transformation':
+      return { top: '-24px', height: '30px' };
     case 'class':
     case 'subclass':
     default:
@@ -45,6 +47,13 @@ const titleStyle = (type: CardType): React.CSSProperties => {
         letterSpacing: '1px',
         fontSize: '12px',
       };
+    case 'transformation':
+      return {
+        top: '-19px',
+        left: '22px',
+        letterSpacing: '1px',
+        fontSize: '11px',
+      };
     case 'domain':
     case 'class':
     case 'subclass':
@@ -63,13 +72,18 @@ type DivederProps = {
 
 export const Divider: React.FC<DivederProps> = ({ card }) => {
   const { type, subtype, domainPrimaryColor, domainSecondaryColor } = card;
-  const subtypeText = ['ancestry', 'community', 'equipment', 'class'].includes(
-    type,
-  )
+  const subtypeText = [
+    'ancestry',
+    'community',
+    'equipment',
+    'class',
+    'transformation',
+  ].includes(type)
     ? type
     : subtype;
   const dividerBadge = ['class', 'subclass', 'domain'].includes(type);
   const background = `linear-gradient(to right, ${domainPrimaryColor}, ${domainSecondaryColor})`;
+  console.log('divider', type);
   return (
     <>
       {dividerBadge ? (

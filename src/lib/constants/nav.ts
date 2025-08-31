@@ -3,7 +3,6 @@ import type { NavCategory } from '@/lib/types';
 export const nav: NavCategory[] = [
   {
     name: 'Community',
-    badge: 'new',
     children: [
       {
         name: 'Cards',
@@ -64,7 +63,6 @@ export const nav: NavCategory[] = [
   },
   {
     name: 'Profile',
-    badge: 'new',
     requireAuth: true,
     children: [
       {
