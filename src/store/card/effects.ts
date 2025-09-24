@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image';
 
 import type { CardClassOption, CardDomainOption } from '@/lib/types';
+import { fallbackCardOptions } from '@/lib/constants/card-options';
 import type { ZustandGet, ZustandSet } from '../types';
 import type { CardEffects, CardState, CardStore } from './types';
 
@@ -32,17 +33,22 @@ const loadOptions =
       actions: { setOptions, setLoading },
     } = get();
     if (!domains || !classes) {
+      setLoading(true);
       try {
-        setLoading(true);
         const res = await fetch('/api/card-options');
+        if (!res.ok) {
+          throw new Error(`Failed to load card options (${res.status})`);
+        }
         const data: {
           classes: CardClassOption[];
           domains: CardDomainOption[];
         } = await res.json();
         setOptions(data);
-        setLoading(false);
       } catch (e) {
-        console.error(e);
+        console.error('Falling back to bundled card options', e);
+        setOptions(fallbackCardOptions);
+      } finally {
+        setLoading(false);
       }
     }
   };

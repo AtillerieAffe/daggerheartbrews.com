@@ -15,6 +15,11 @@ import {
 import { FormContainer } from '@/components/common/form';
 import { CollapsibleContent } from '@radix-ui/react-collapsible';
 import { fileToBase64 } from '@/lib/utils';
+import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback';
+
+const CROP_ASPECT_RATIO = 1;
+const MIN_CROP_ZOOM = 0.2;
+const CROP_ZOOM_SENSITIVITY = 2e-3;
 
 const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
@@ -70,47 +75,135 @@ export const ImageForm = () => {
   } = useCardStore();
   const { setCardDetails } = useCardActions();
   // Foreground image upload
-  const [{ files }, { removeFile, openFileDialog, getInputProps }] =
-    useFileUpload({ accept: 'image/*' });
+  const [{ files }, { removeFile, openFileDialog, getInputProps }] = useFileUpload({
+    accept: 'image/*',
+    initialFiles: React.useMemo(() => {
+      if (!image) return [];
+      const isData = image.startsWith('data:');
+      // Best-effort mime detection from data URL
+      const mime = isData
+        ? image.substring(5, image.indexOf(';')) // between 'data:' and ';'
+        : 'image/png';
+      return [
+        {
+          id: 'foreground-initial',
+          name: 'saved-foreground',
+          size: 0,
+          type: mime,
+          url: image,
+        },
+      ];
+    }, [image]) as any,
+  });
   // Background image upload
   const [
     { files: bgFiles },
     { removeFile: removeBgFile, openFileDialog: openBgDialog, getInputProps: getBgInputProps },
-  ] = useFileUpload({ accept: 'image/*' });
+  ] = useFileUpload({
+    accept: 'image/*',
+    initialFiles: React.useMemo(() => {
+      if (!backgroundImage) return [];
+      const isData = backgroundImage.startsWith('data:');
+      const mime = isData
+        ? backgroundImage.substring(5, backgroundImage.indexOf(';'))
+        : 'image/png';
+      return [
+        {
+          id: 'background-initial',
+          name: 'saved-background',
+          size: 0,
+          type: mime,
+          url: backgroundImage,
+        },
+      ];
+    }, [backgroundImage]) as any,
+  });
   const [file] = files;
   const [bgFile] = bgFiles;
 
   React.useEffect(() => {
-    setCardDetails({ image: file?.preview || undefined });
-  }, [file]);
+    const run = async () => {
+      // No newly selected file: keep existing image as-is
+      if (!file) return;
+      // If we have a freshly selected File, convert to base64 so it persists
+      const f = file.file;
+      if (f instanceof File) {
+        try {
+          const b64 = await fileToBase64(f);
+          setCardDetails({ image: b64 });
+        } catch {
+          // leave existing image untouched on error
+        }
+      } else if (file.preview?.startsWith('data:')) {
+        // Already a data URL
+        setCardDetails({ image: file.preview });
+      } else {
+        // leave existing image untouched
+      }
+    };
+    run();
+  }, [file, setCardDetails]);
 
   React.useEffect(() => {
-    setCardDetails({ backgroundImage: bgFile?.preview || undefined });
-  }, [bgFile]);
+    const run = async () => {
+      // No newly selected background file: keep existing background image
+      if (!bgFile) return;
+      const f = bgFile.file;
+      if (f instanceof File) {
+        try {
+          const b64 = await fileToBase64(f);
+          setCardDetails({ backgroundImage: b64 });
+        } catch {
+          // leave existing background image untouched on error
+        }
+      } else if (bgFile.preview?.startsWith('data:')) {
+        setCardDetails({ backgroundImage: bgFile.preview });
+      } else {
+        // leave existing background image untouched
+      }
+    };
+    run();
+  }, [bgFile, setCardDetails]);
 
-  const handleCropChange = async (area: Area | null) => {
-    if (area && file?.preview) {
-      const blob = await getCroppedImage(file.preview, area);
-      if (blob) {
-        const cropped = await fileToBase64(blob);
-        if (image !== cropped) {
-          setCardDetails({ image: cropped });
+  const handleCropApply = React.useCallback(
+    async (area: Area | null, preview?: string, current?: string) => {
+      if (area && preview) {
+        const blob = await getCroppedImage(preview, area);
+        if (blob) {
+          const cropped = await fileToBase64(blob);
+          if (current !== cropped) {
+            setCardDetails({ image: cropped });
+          }
         }
       }
-    }
-  };
+    },
+    [setCardDetails],
+  );
 
-  const handleBgCropChange = async (area: Area | null) => {
-    if (area && bgFile?.preview) {
-      const blob = await getCroppedImage(bgFile.preview, area);
-      if (blob) {
-        const cropped = await fileToBase64(blob);
-        if (backgroundImage !== cropped) {
-          setCardDetails({ backgroundImage: cropped });
+  const handleCropChange = useDebouncedCallback(
+    (area: Area | null) => handleCropApply(area, file?.preview, image),
+    200,
+  );
+
+  const handleBgCropApply = React.useCallback(
+    async (area: Area | null, preview?: string, current?: string) => {
+      if (area && preview) {
+        const blob = await getCroppedImage(preview, area);
+        if (blob) {
+          const cropped = await fileToBase64(blob);
+          if (current !== cropped) {
+            setCardDetails({ backgroundImage: cropped });
+          }
         }
       }
-    }
-  };
+    },
+    [setCardDetails],
+  );
+
+  const handleBgCropChange = useDebouncedCallback(
+    (area: Area | null) => handleBgCropApply(area, bgFile?.preview, backgroundImage),
+    200,
+  );
 
   return (
     <FormContainer title='Card Image' collapsible defaultOpen>
@@ -163,8 +256,12 @@ export const ImageForm = () => {
         <CollapsibleContent>
           {file?.preview ? (
             <ImageCropper
+              key={file.preview}
               className='h-64 rounded'
               image={file.preview}
+              aspectRatio={CROP_ASPECT_RATIO}
+              minZoom={MIN_CROP_ZOOM}
+              zoomSensitivity={CROP_ZOOM_SENSITIVITY}
               onCropChange={handleCropChange}
             >
               <ImageCropperImage />
@@ -222,8 +319,12 @@ export const ImageForm = () => {
         <CollapsibleContent>
           {bgFile?.preview ? (
             <ImageCropper
+              key={bgFile.preview}
               className='h-64 rounded'
               image={bgFile.preview}
+              aspectRatio={CROP_ASPECT_RATIO}
+              minZoom={MIN_CROP_ZOOM}
+              zoomSensitivity={CROP_ZOOM_SENSITIVITY}
               onCropChange={handleBgCropChange}
             >
               <ImageCropperImage />
