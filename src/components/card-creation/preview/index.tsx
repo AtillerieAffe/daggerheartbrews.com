@@ -54,20 +54,21 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           className='relative overflow-hidden'
           style={{ height: `${CARD_ART_HEIGHT}px` }}
         >
-          {/* Background image when foreground exists: layer behind */}
-          {card.image && card.backgroundImage ? (
+          {card.backgroundImage ? (
             <img
-              className='absolute inset-0 z-0 h-full w-full object-cover'
+              className='absolute inset-0 z-[5] h-full w-full object-cover'
               src={card.backgroundImage}
               alt='Background'
             />
           ) : null}
           {card.image ? (
             <img
-              className='relative z-0 h-full w-full object-contain'
+              className={cn(
+                'relative h-full w-full object-contain z-[10]',
+                !card.backgroundImage && 'z-[10]',
+              )}
               src={card.image}
               style={{
-                // Combine translateY, scale and rotation for preview/exports.
                 transform: `translateY(${settings.imageOffsetY ?? 0}px) scale(${(settings.imageScale ?? 100) / 100}) rotate(${settings.imageRotation ?? 0}deg)`,
                 transformOrigin: 'center',
                 objectPosition: 'center',
@@ -87,50 +88,47 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                 })(),
               }}
             />
-          ) : card.backgroundImage ? (
-            // Background only: render normally to set height
-            <img
-              className='h-full w-full object-cover'
-              src={card.backgroundImage}
-              alt='Background'
-            />
           ) : settings.placeholderImage ? (
-            <div className='flex h-full w-full items-center justify-center'>
+            <div className='relative z-10 flex h-full w-full items-center justify-center'>
               <DaggerheartBrewsIcon
                 style={{ height: '64px', width: '64px', color: '#737373' }}
               />
             </div>
           ) : null}
         </div>
-        <div className='flex-start relative mt-auto flex min-h-[200px] w-full flex-col items-center gap-1.5 bg-white pb-9'>
+        <div className='flex-start absolute bottom-9 left-0 right-0 z-20 flex min-h-[200px] w-full flex-col items-center bg-white'>
           <Divider card={card} />
-          <p
-            className={cn(
-              'font-eveleth-clean z-20 w-full px-6 pt-4',
-              ['ancestry', 'community'].includes(card.type)
-                ? 'text-2xl'
-                : 'text-center text-base',
-            )}
-          >
-            {card.name}
-          </p>
-          {['class', 'subclass', 'equipment'].includes(card.type) ? (
-            <p
-              className='font-semibold capitalize italic'
-              style={{ fontSize: '12px' }}
-            >
-              {card.subtitle}
-            </p>
-          ) : null}
-          <div
-            className='z-20 w-full space-y-2 px-6 leading-none text-pretty'
-            style={{ fontSize: 12 }}
-            dangerouslySetInnerHTML={{ __html: card.text || '' }}
-          />
-          <Thresholds
-            thresholds={card.thresholds}
-            thresholdsEnabled={card.thresholdsEnabled}
-          />
+          <div className='relative z-20 w-full px-6 pt-6 pb-4'>
+            <div className='relative flex flex-col items-center gap-1.5'>
+              <p
+                className={cn(
+                  'font-eveleth-clean w-full',
+                  ['ancestry', 'community'].includes(card.type)
+                    ? 'text-2xl'
+                    : 'text-center text-base',
+                )}
+              >
+                {card.name}
+              </p>
+              {['class', 'subclass', 'equipment'].includes(card.type) ? (
+                <p
+                  className='font-semibold capitalize italic'
+                  style={{ fontSize: '12px' }}
+                >
+                  {card.subtitle}
+                </p>
+              ) : null}
+              <div
+                className='w-full space-y-2 leading-none text-pretty'
+                style={{ fontSize: 12 }}
+                dangerouslySetInnerHTML={{ __html: card.text || '' }}
+              />
+              <Thresholds
+                thresholds={card.thresholds}
+                thresholdsEnabled={card.thresholdsEnabled}
+              />
+            </div>
+          </div>
         </div>
         <div
           className='absolute flex items-end gap-0.5 italic'

@@ -1,7 +1,7 @@
 export const Evasion = ({ evasion }: { evasion?: number }) => {
   return (
     <>
-      <div className='absolute' style={{ right: '24px', top: '24px' }}>
+      <div className='absolute z-30' style={{ right: '24px', top: '24px' }}>
         <div
           className='relative flex items-center justify-center'
           style={{ height: '36px', width: '36px' }}
