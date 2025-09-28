@@ -1,0 +1,14 @@
+export const CARD_PREVIEW_WIDTH = 340;
+export const CARD_ASPECT_WIDTH = 63;
+export const CARD_ASPECT_HEIGHT = 88;
+
+export const CARD_PREVIEW_HEIGHT =
+  (CARD_PREVIEW_WIDTH * CARD_ASPECT_HEIGHT) / CARD_ASPECT_WIDTH;
+
+// Space reserved for divider, name, rules text, etc.
+export const CARD_CONTENT_RESERVED_HEIGHT = 210;
+
+export const CARD_ART_HEIGHT =
+  CARD_PREVIEW_HEIGHT - CARD_CONTENT_RESERVED_HEIGHT;
+
+export const CARD_ART_ASPECT_RATIO = CARD_PREVIEW_WIDTH / CARD_ART_HEIGHT;

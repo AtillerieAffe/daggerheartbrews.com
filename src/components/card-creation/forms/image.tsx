@@ -16,8 +16,9 @@ import { FormContainer } from '@/components/common/form';
 import { CollapsibleContent } from '@radix-ui/react-collapsible';
 import { fileToBase64 } from '@/lib/utils';
 import { useDebouncedCallback } from '@/lib/hooks/useDebouncedCallback';
+import { CARD_ART_ASPECT_RATIO } from '@/lib/constants/card-layout';
 
-const CROP_ASPECT_RATIO = 1;
+const CROP_ASPECT_RATIO = CARD_ART_ASPECT_RATIO;
 const MIN_CROP_ZOOM = 0.2;
 const CROP_ZOOM_SENSITIVITY = 2e-3;
 
@@ -30,6 +31,9 @@ const createImage = (url: string): Promise<HTMLImageElement> =>
     image.src = url;
   });
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(value, min), max);
+
 const getCroppedImage = async (
   url: string,
   area: Area,
@@ -41,18 +45,26 @@ const getCroppedImage = async (
     if (!ctx) {
       return null;
     }
-    canvas.width = area.width;
-    canvas.height = area.height;
+    const { width: imgW, height: imgH } = image;
+    let { x, y, width, height } = area;
+
+    width = clamp(width, 1, imgW);
+    height = clamp(height, 1, imgH);
+    x = clamp(x, 0, imgW - width);
+    y = clamp(y, 0, imgH - height);
+
+    canvas.width = Math.round(width);
+    canvas.height = Math.round(height);
     ctx.drawImage(
       image,
-      area.x,
-      area.y,
-      area.width,
-      area.height,
+      x,
+      y,
+      width,
+      height,
       0,
       0,
-      area.width,
-      area.height,
+      canvas.width,
+      canvas.height,
     );
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {

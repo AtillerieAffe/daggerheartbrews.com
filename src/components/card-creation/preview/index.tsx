@@ -12,6 +12,7 @@ import { useCardActions, useCardEffects, useCardStore } from '@/store/card';
 import { DaggerheartBrewsIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { SavePreviewButton } from '@/components/common';
+import { CARD_ART_HEIGHT } from '@/lib/constants/card-layout';
 import {
   Banner,
   Divider,
@@ -49,7 +50,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         {card.type === 'domain' && <Stress stress={card.stress} />}
         {card.type === 'class' && <Evasion evasion={card.evasion} />}
         {card.type === 'equipment' && <Equipment />}
-        <div className='relative overflow-hidden'>
+        <div
+          className='relative overflow-hidden'
+          style={{ height: `${CARD_ART_HEIGHT}px` }}
+        >
           {/* Background image when foreground exists: layer behind */}
           {card.image && card.backgroundImage ? (
             <img
@@ -60,7 +64,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           ) : null}
           {card.image ? (
             <img
-              className='relative z-0 w-full object-cover'
+              className='relative z-0 h-full w-full object-contain'
               src={card.image}
               style={{
                 // Combine translateY, scale and rotation for preview/exports.
@@ -86,19 +90,19 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
           ) : card.backgroundImage ? (
             // Background only: render normally to set height
             <img
-              className='w-full object-cover'
+              className='h-full w-full object-cover'
               src={card.backgroundImage}
               alt='Background'
             />
           ) : settings.placeholderImage ? (
-            <div className='flex h-[250px] w-full items-center justify-center'>
+            <div className='flex h-full w-full items-center justify-center'>
               <DaggerheartBrewsIcon
                 style={{ height: '64px', width: '64px', color: '#737373' }}
               />
             </div>
           ) : null}
         </div>
-        <div className='flex-start absolute bottom-9 flex min-h-[200px] w-full flex-col items-center gap-1.5 bg-white'>
+        <div className='flex-start relative mt-auto flex min-h-[200px] w-full flex-col items-center gap-1.5 bg-white pb-9'>
           <Divider card={card} />
           <p
             className={cn(
