@@ -14,3 +14,10 @@ export const initialSettings: CardSettings = {
   imageGlowRadius: 12,
   imageGlowStrength: 0.7,
 };
+
+export const mergeCardSettings = (
+  settings?: Partial<CardSettings> | null,
+): CardSettings => ({
+  ...initialSettings,
+  ...(settings ?? {}),
+});

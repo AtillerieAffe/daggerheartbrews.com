@@ -14,7 +14,7 @@ import { useAdversaryActions, useCardActions } from '@/store';
 import { Button } from '../ui/button';
 import { Switch } from '../ui/switch';
 import { CardPreview } from '../card-creation/preview';
-import { initialSettings } from '@/lib/constants';
+import { mergeCardSettings } from '@/lib/constants';
 import { AdversaryPreviewStatblock } from '../adversary-creation/preview/statblock';
 
 type PersonalCardTileProps = React.ComponentProps<'div'> & {
@@ -29,13 +29,15 @@ export const PersonalCardTile: React.FC<PersonalCardTileProps> = ({
   const router = useRouter();
   const { setUserCard, setCardDetails, setSettings } = useCardActions();
   const [visiblility, setVisibility] = React.useState(userCard.public);
+  const mergedSettings = React.useMemo(
+    () => mergeCardSettings(cardPreview.settings ?? undefined),
+    [cardPreview.settings],
+  );
 
   const handleEdit = () => {
     setUserCard(userCard);
     setCardDetails(cardPreview);
-    if ((cardPreview as any).settings) {
-      setSettings((cardPreview as any).settings);
-    }
+    setSettings(mergedSettings);
     router.push('/card/create');
   };
 
@@ -75,7 +77,7 @@ export const PersonalCardTile: React.FC<PersonalCardTileProps> = ({
       <div className='flex items-center justify-center'>
         <CardPreview
           card={cardPreview}
-          settings={(cardPreview.settings as any) ?? initialSettings}
+          settings={mergedSettings}
         />
       </div>
       <div className='mt-3 flex items-center justify-between gap-2'>
@@ -166,4 +168,3 @@ export const PersonalAdversaryTile: React.FC<PersonalAdversaryTileProps> = ({
     </div>
   );
 };
-

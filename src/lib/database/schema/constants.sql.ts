@@ -1,4 +1,6 @@
-import { boolean, integer, pgTable, point, text } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, point, text } from 'drizzle-orm/pg-core';
+
+import type { CardSettings } from '@/lib/types';
 
 import { uuidPrimaryKey } from './columns.helpers';
 
@@ -22,6 +24,8 @@ export const cardPreviews = pgTable('card_previews', {
   name: text('name').notNull(),
   type: text('type').notNull(),
   image: text('image'),
+  backgroundImage: text('background_image'),
+  settings: jsonb('settings').$type<CardSettings | null>(),
   text: text('text'),
   artist: text('artist'),
   credits: text('credits'),

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
-import type { CardDetails } from '@/lib/types';
+import type { CardDetails, CardSettings } from '@/lib/types';
 import { auth } from '@/lib/auth';
 import { formatAPIError } from '@/lib/utils';
 import { insertCard, limitCardInserts } from '@/actions/user-items';
 
 export async function POST(req: NextRequest) {
   try {
-    const body: { card: CardDetails } = await req.json();
+    const body: { card: CardDetails; settings?: CardSettings | null } =
+      await req.json();
     const session = await auth.api.getSession({
       headers: await headers(),
     });

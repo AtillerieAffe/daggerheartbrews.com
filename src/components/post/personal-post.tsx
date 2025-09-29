@@ -19,6 +19,7 @@ import { AdversaryPreviewStatblock } from '../adversary-creation/preview/statblo
 import { Switch } from '../ui/switch';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { mergeCardSettings } from '@/lib/constants';
 
 type VisibilityToggleProps = React.ComponentProps<'div'> & {
   visiblility: boolean;
@@ -62,10 +63,15 @@ export const PersonalCard: React.FC<PersonalCardProps> = ({
 }) => {
   const router = useRouter();
   const [visiblility, setVisibility] = React.useState(userCard.public);
-  const { setUserCard, setCardDetails } = useCardActions();
+  const { setUserCard, setCardDetails, setSettings } = useCardActions();
+  const mergedSettings = React.useMemo(
+    () => mergeCardSettings(cardPreview.settings ?? undefined),
+    [cardPreview.settings],
+  );
   const handleTemplate = () => {
     setUserCard(userCard);
     setCardDetails(cardPreview);
+    setSettings(mergedSettings);
     router.push('/card/create');
   };
   const updateVisibility = async () => {
@@ -130,13 +136,7 @@ export const PersonalCard: React.FC<PersonalCardProps> = ({
             <div className='flex items-center justify-center'>
               <CardPreview
                 card={cardPreview}
-                settings={{
-                  border: true,
-                  boldRulesText: true,
-                  artist: true,
-                  credits: true,
-                  placeholderImage: true,
-                }}
+                settings={mergedSettings}
               />
             </div>
           </ResponsiveDialog>

@@ -10,7 +10,7 @@ import {
   userAdversaries,
   userCards,
 } from '@/lib/database/schema';
-import type { AdversaryDetails, CardDetails, User } from '@/lib/types';
+import type { AdversaryDetails, CardDetails, CardSettings, User } from '@/lib/types';
 
 export const limitCardInserts = async ({
   session,
@@ -32,14 +32,18 @@ export const insertCard = async ({
   body,
   session,
 }: {
-  body: { card: CardDetails };
+  body: { card: CardDetails; settings?: CardSettings | null };
   session: { user: User };
 }) => {
   return await db.transaction(async (tx) => {
     const { id: _id, ...insertCard } = body.card;
     const [card] = await tx
       .insert(cardPreviews)
-      .values({ ...insertCard, text: sanitizeHtml(insertCard.text || '') })
+      .values({
+        ...insertCard,
+        text: sanitizeHtml(insertCard.text || ''),
+        settings: body.settings ?? null,
+      })
       .returning();
     const [userCard] = await tx
       .insert(userCards)
@@ -55,13 +59,21 @@ export const updateCard = async ({
   session,
 }: {
   id: string;
-  body: { card: CardDetails };
+  body: { card: CardDetails; settings?: CardSettings | null };
   session: { user: User };
 }) => {
   return await db.transaction(async (tx) => {
+    const updatePayload: Record<string, unknown> = {
+      ...body.card,
+      text: sanitizeHtml(body.card.text || ''),
+    };
+    if (typeof body.settings !== 'undefined') {
+      updatePayload.settings = body.settings;
+    }
+
     const [card] = await tx
       .update(cardPreviews)
-      .set({ ...body.card, text: sanitizeHtml(body.card.text || '') })
+      .set(updatePayload)
       .where(eq(cardPreviews.id, id))
       .returning();
     const [userCard] = await tx

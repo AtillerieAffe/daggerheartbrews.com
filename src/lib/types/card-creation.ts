@@ -86,4 +86,15 @@ export type CardDetails = {
   domainSecondary?: string;
   domainSecondaryColor?: string;
   domainSecondaryIcon?: string;
+  settings?: CardSettings | null;
+};
+export type GlowPreset = {
+  id: string;
+  userId: string;
+  name: string;
+  color: string;
+  strength: number;
+  radius: number;
+  createdAt: string;
+  updatedAt: string | null;
 };

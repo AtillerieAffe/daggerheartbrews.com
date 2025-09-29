@@ -4,6 +4,7 @@ import { CollapsibleContent } from '@/components/ui/collapsible';
 import { useCardActions, useCardStore } from '@/store';
 import { FormCheckbox } from '@/components/common/form/form-checkbox';
 import { FormContainer } from '@/components/common/form';
+import { GlowPresetControls } from './glow-presets';
 
 export const SettingsForm = () => {
   const { settings } = useCardStore();
@@ -132,64 +133,79 @@ export const SettingsForm = () => {
         </div>
 
         {settings.imageGlow ? (
-          <div className='mt-2 grid grid-cols-2 gap-3'>
-            <div className='space-y-1'>
-              <label htmlFor='glow-color' className='text-sm font-medium'>
-                Glow color
-              </label>
-              <input
-                id='glow-color'
-                type='color'
-                value={settings.imageGlowColor ?? '#ffffff'}
-                onChange={(e) => setSettings({ imageGlowColor: e.target.value })}
-                className='h-9 w-16 cursor-pointer rounded border'
-              />
-            </div>
-
-            <div className='space-y-1'>
-              <label htmlFor='glow-strength' className='text-sm font-medium'>
-                Glow strength
-              </label>
-              <div className='flex items-center gap-3'>
+          <>
+            <div className='mt-2 grid grid-cols-2 gap-3'>
+              <div className='space-y-1'>
+                <label htmlFor='glow-color' className='text-sm font-medium'>
+                  Glow color
+                </label>
                 <input
-                  id='glow-strength'
-                  type='range'
-                  min={0}
-                  max={100}
-                  step={1}
-                  value={Math.round((settings.imageGlowStrength ?? 0.7) * 100)}
-                  onChange={(e) =>
-                    setSettings({ imageGlowStrength: Number(e.target.value) / 100 })
-                  }
-                  className='w-full'
+                  id='glow-color'
+                  type='color'
+                  value={settings.imageGlowColor ?? '#ffffff'}
+                  onChange={(e) => setSettings({ imageGlowColor: e.target.value })}
+                  className='h-9 w-16 cursor-pointer rounded border'
                 />
-                <span className='w-10 text-right text-sm tabular-nums'>
-                  {Math.round((settings.imageGlowStrength ?? 0.7) * 100)}%
-                </span>
+              </div>
+
+              <div className='space-y-1'>
+                <label htmlFor='glow-strength' className='text-sm font-medium'>
+                  Glow strength
+                </label>
+                <div className='flex items-center gap-3'>
+                  <input
+                    id='glow-strength'
+                    type='range'
+                    min={0}
+                    max={100}
+                    step={1}
+                    value={Math.round((settings.imageGlowStrength ?? 0.7) * 100)}
+                    onChange={(e) =>
+                      setSettings({ imageGlowStrength: Number(e.target.value) / 100 })
+                    }
+                    className='w-full'
+                  />
+                  <span className='w-10 text-right text-sm tabular-nums'>
+                    {Math.round((settings.imageGlowStrength ?? 0.7) * 100)}%
+                  </span>
+                </div>
+              </div>
+
+              <div className='col-span-2 space-y-1'>
+                <label htmlFor='glow-radius' className='text-sm font-medium'>
+                  Glow radius
+                </label>
+                <div className='flex items-center gap-3'>
+                  <input
+                    id='glow-radius'
+                    type='range'
+                    min={0}
+                    max={40}
+                    step={1}
+                    value={settings.imageGlowRadius ?? 12}
+                    onChange={(e) => setSettings({ imageGlowRadius: Number(e.target.value) })}
+                    className='w-full'
+                  />
+                  <span className='w-10 text-right text-sm tabular-nums'>
+                    {(settings.imageGlowRadius ?? 12)}px
+                  </span>
+                </div>
               </div>
             </div>
-
-            <div className='col-span-2 space-y-1'>
-              <label htmlFor='glow-radius' className='text-sm font-medium'>
-                Glow radius
-              </label>
-              <div className='flex items-center gap-3'>
-                <input
-                  id='glow-radius'
-                  type='range'
-                  min={0}
-                  max={40}
-                  step={1}
-                  value={settings.imageGlowRadius ?? 12}
-                  onChange={(e) => setSettings({ imageGlowRadius: Number(e.target.value) })}
-                  className='w-full'
-                />
-                <span className='w-10 text-right text-sm tabular-nums'>
-                  {(settings.imageGlowRadius ?? 12)}px
-                </span>
-              </div>
-            </div>
-          </div>
+            <GlowPresetControls
+              currentColor={settings.imageGlowColor ?? '#ffffff'}
+              currentStrength={settings.imageGlowStrength ?? 0.7}
+              currentRadius={settings.imageGlowRadius ?? 12}
+              onApply={(preset) =>
+                setSettings({
+                  imageGlow: true,
+                  imageGlowColor: preset.color,
+                  imageGlowStrength: preset.strength,
+                  imageGlowRadius: preset.radius,
+                })
+              }
+            />
+          </>
         ) : null}
       </CollapsibleContent>
     </FormContainer>

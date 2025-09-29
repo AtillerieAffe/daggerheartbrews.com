@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 
 import type { CardDetails, CardSettings, UserCard } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { mergeCardSettings } from '@/lib/constants';
 import { useCardActions, useCardEffects, useCardStore } from '@/store/card';
 import { DaggerheartBrewsIcon } from '@/components/icons';
 import { Button } from '@/components/ui/button';
@@ -34,11 +35,12 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   settings,
   ...props
 }) => {
+  const resolvedSettings = mergeCardSettings(settings);
   return (
     <div
       className={cn(
         'aspect-card w-[340px] overflow-hidden',
-        settings.border && 'rounded-lg border-2 border-amber-300 shadow',
+        resolvedSettings.border && 'rounded-lg border-2 border-amber-300 shadow',
         className,
       )}
       {...props}
@@ -69,17 +71,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               )}
               src={card.image}
               style={{
-                transform: `translateY(${settings.imageOffsetY ?? 0}px) scale(${(settings.imageScale ?? 100) / 100}) rotate(${settings.imageRotation ?? 0}deg)`,
+                transform: `translateY(${resolvedSettings.imageOffsetY ?? 0}px) scale(${(resolvedSettings.imageScale ?? 100) / 100}) rotate(${resolvedSettings.imageRotation ?? 0}deg)`,
                 transformOrigin: 'center',
                 objectPosition: 'center',
                 filter: (() => {
-                  if (!settings.imageGlow) return undefined;
-                  const hex = (settings.imageGlowColor ?? '#ffffff').replace('#', '');
+                  if (!resolvedSettings.imageGlow) return undefined;
+                  const hex = (resolvedSettings.imageGlowColor ?? '#ffffff').replace('#', '');
                   const r = parseInt(hex.length === 3 ? hex[0] + hex[0] : hex.slice(0, 2), 16);
                   const g = parseInt(hex.length === 3 ? hex[1] + hex[1] : hex.slice(2, 4), 16);
                   const b = parseInt(hex.length === 3 ? hex[2] + hex[2] : hex.slice(4, 6), 16);
-                  const strength = Math.max(0, Math.min(1, settings.imageGlowStrength ?? 0.7));
-                  const radius = Math.max(0, settings.imageGlowRadius ?? 12);
+                  const strength = Math.max(0, Math.min(1, resolvedSettings.imageGlowStrength ?? 0.7));
+                  const radius = Math.max(0, resolvedSettings.imageGlowRadius ?? 12);
                   const r1 = Math.round(radius * 0.6);
                   const r2 = radius;
                   const a1 = (0.55 * strength).toFixed(3);
@@ -88,7 +90,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
                 })(),
               }}
             />
-          ) : settings.placeholderImage ? (
+          ) : resolvedSettings.placeholderImage ? (
             <div className='relative z-10 flex h-full w-full items-center justify-center'>
               <DaggerheartBrewsIcon
                 style={{ height: '64px', width: '64px', color: '#737373' }}
@@ -138,7 +140,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             fontSize: '10px',
           }}
         >
-          {settings.artist && (
+          {resolvedSettings.artist && (
             <>
               <Image
                 className='size-3.5'
@@ -160,7 +162,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
             color: '#110f1c80',
           }}
         >
-          {settings.credits && (
+          {resolvedSettings.credits && (
             <>
               {card.credits}
               <Image

@@ -22,6 +22,7 @@ import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
 import { useCardActions } from '@/store';
+import { mergeCardSettings } from '@/lib/constants';
 
 type CardLite = {
   id: string;
@@ -267,7 +268,9 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                             const { userCard, cardPreview } = json.data as any;
                             setUserCard(userCard);
                             setCardDetails(cardPreview);
-                            if (cardPreview?.settings) setSettings(cardPreview.settings);
+                            setSettings(
+                              mergeCardSettings(cardPreview?.settings ?? undefined),
+                            );
                             router.push('/card/create');
                           }
                         } catch {}
@@ -380,5 +383,4 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     </div>
   );
 };
-
 
