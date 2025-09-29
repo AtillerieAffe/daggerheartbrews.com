@@ -12,6 +12,33 @@ import {
 } from '@/lib/database/schema';
 import type { AdversaryDetails, CardDetails, CardSettings, User } from '@/lib/types';
 
+const addAttribute = (attributes: string[] | undefined, attribute: string) => {
+  const next = new Set(attributes ?? []);
+  next.add(attribute);
+  return Array.from(next);
+};
+
+const defaultAllowedStyles = sanitizeHtml.defaults.allowedStyles || {};
+
+const sanitizeRichText = (html: string) =>
+  sanitizeHtml(html, {
+    allowedTags: sanitizeHtml.defaults.allowedTags,
+    allowedAttributes: {
+      ...sanitizeHtml.defaults.allowedAttributes,
+      '*': addAttribute(
+        sanitizeHtml.defaults.allowedAttributes['*'] as string[] | undefined,
+        'style',
+      ),
+    },
+    allowedStyles: {
+      ...defaultAllowedStyles,
+      '*': {
+        ...(defaultAllowedStyles['*'] ?? {}),
+        'text-align': [/^left$/, /^right$/, /^center$/, /^justify$/],
+      },
+    },
+  });
+
 export const limitCardInserts = async ({
   session,
   limit = 1000,
@@ -41,7 +68,7 @@ export const insertCard = async ({
       .insert(cardPreviews)
       .values({
         ...insertCard,
-        text: sanitizeHtml(insertCard.text || ''),
+        text: sanitizeRichText(insertCard.text || ''),
         settings: body.settings ?? null,
       })
       .returning();
@@ -65,7 +92,7 @@ export const updateCard = async ({
   return await db.transaction(async (tx) => {
     const updatePayload: Record<string, unknown> = {
       ...body.card,
-      text: sanitizeHtml(body.card.text || ''),
+      text: sanitizeRichText(body.card.text || ''),
     };
     if (typeof body.settings !== 'undefined') {
       updatePayload.settings = body.settings;
@@ -119,7 +146,7 @@ export const insertAdversary = async ({
       .insert(adversaryPreviews)
       .values({
         ...insertAdversary,
-        text: sanitizeHtml(insertAdversary.text || ''),
+        text: sanitizeRichText(insertAdversary.text || ''),
       })
       .returning();
     const [userAdversary] = await tx
@@ -142,7 +169,7 @@ export const updateAdversary = async ({
   return await db.transaction(async (tx) => {
     const [adversary] = await tx
       .update(adversaryPreviews)
-      .set({ ...body.adversary, text: sanitizeHtml(body.adversary.text || '') })
+      .set({ ...body.adversary, text: sanitizeRichText(body.adversary.text || '') })
       .where(eq(adversaryPreviews.id, id))
       .returning();
     const [userAdversary] = await tx

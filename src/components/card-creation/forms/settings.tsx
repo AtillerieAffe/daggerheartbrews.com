@@ -1,6 +1,7 @@
 'use client';
 
 import { CollapsibleContent } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
 import { useCardActions, useCardStore } from '@/store';
 import { FormCheckbox } from '@/components/common/form/form-checkbox';
 import { FormContainer } from '@/components/common/form';
@@ -118,6 +119,22 @@ export const SettingsForm = () => {
               {(settings.imageOffsetY ?? 0)}px
             </span>
           </div>
+        </div>
+
+        {/* Image horizontal flip toggle */}
+        <div className='mt-3 flex items-center justify-between'>
+          <span className='text-sm font-medium'>Flip image horizontally</span>
+          <Button
+            type='button'
+            aria-pressed={!!settings.imageFlipHorizontal}
+            variant={settings.imageFlipHorizontal ? 'secondary' : 'outline'}
+            onClick={() =>
+              setSettings({ imageFlipHorizontal: !settings.imageFlipHorizontal })
+            }
+            className='px-3'
+          >
+            {settings.imageFlipHorizontal ? 'Unflip' : 'Flip'}
+          </Button>
         </div>
 
         {/* Glow toggle */}

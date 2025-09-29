@@ -9,6 +9,7 @@ export const initialSettings: CardSettings = {
   imageScale: 100,
   imageRotation: 0,
   imageOffsetY: 0,
+  imageFlipHorizontal: false,
   imageGlow: false,
   imageGlowColor: '#ffffff',
   imageGlowRadius: 12,

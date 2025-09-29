@@ -36,6 +36,14 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   ...props
 }) => {
   const resolvedSettings = mergeCardSettings(settings);
+  const imageTransform = [
+    `translateY(${resolvedSettings.imageOffsetY ?? 0}px)`,
+    resolvedSettings.imageFlipHorizontal ? 'scaleX(-1)' : null,
+    `scale(${(resolvedSettings.imageScale ?? 100) / 100})`,
+    `rotate(${resolvedSettings.imageRotation ?? 0}deg)`,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
   return (
     <div
       className={cn(
@@ -71,7 +79,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               )}
               src={card.image}
               style={{
-                transform: `translateY(${resolvedSettings.imageOffsetY ?? 0}px) scale(${(resolvedSettings.imageScale ?? 100) / 100}) rotate(${resolvedSettings.imageRotation ?? 0}deg)`,
+                transform: imageTransform,
                 transformOrigin: 'center',
                 objectPosition: 'center',
                 filter: (() => {
