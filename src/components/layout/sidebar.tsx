@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 
 import { useSession, logout } from '@/lib/auth/client';
 import { nav } from '@/lib/constants';
+import { useCardActions } from '@/store';
 import {
   Sidebar,
   SidebarContent,
@@ -144,6 +145,7 @@ const AppSidebarFooter = () => {
 const AppSidebarContent = () => {
   const pathname = usePathname();
   const { data } = useSession();
+  const { resetCard } = useCardActions();
   return (
     <SidebarContent>
       {nav
@@ -178,7 +180,14 @@ const AppSidebarContent = () => {
                           asChild
                           isActive={pathname === item.url}
                         >
-                          <Link href={item.url}>
+                          <Link
+                            href={item.url}
+                            onClick={() => {
+                              if (item.url === '/card/create') {
+                                resetCard();
+                              }
+                            }}
+                          >
                             {item.name}
                             {item.badge && (
                               <Badge className='capitalize'>{item.badge}</Badge>

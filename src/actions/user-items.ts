@@ -18,7 +18,11 @@ const addAttribute = (attributes: string[] | undefined, attribute: string) => {
   return Array.from(next);
 };
 
-const defaultAllowedStyles = sanitizeHtml.defaults.allowedStyles || {};
+type AllowedStyles = NonNullable<sanitizeHtml.IOptions['allowedStyles']>;
+
+const defaultAllowedStyles =
+  (sanitizeHtml.defaults as sanitizeHtml.IDefaults & { allowedStyles?: AllowedStyles }).allowedStyles ??
+  ({} as AllowedStyles);
 
 const sanitizeRichText = (html: string) =>
   sanitizeHtml(html, {

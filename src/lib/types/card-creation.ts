@@ -48,6 +48,8 @@ export type CardSettings = {
   imageRotation?: number;
   // Vertical offset in pixels for preview image
   imageOffsetY?: number;
+  // Flip preview image horizontally when true
+  imageFlipHorizontal?: boolean;
   // Toggle a glow around the foreground image
   imageGlow?: boolean;
   // Glow color (hex)

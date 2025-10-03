@@ -41,6 +41,7 @@ export type CardActions = {
     domains: CardDomainOption[];
     classes: CardClassOption[];
   }): void;
+  resetCard(): void;
 };
 
 export type CardEffects = {
