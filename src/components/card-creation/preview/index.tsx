@@ -59,7 +59,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
         )}
         {card.type === 'domain' && <Stress stress={card.stress} />}
         {card.type === 'class' && <Evasion evasion={card.evasion} />}
-        {card.type === 'equipment' && <Equipment />}
+        {card.type === 'equipment' && <Equipment cardOverride={card} />}
         <div
           className='relative overflow-hidden'
           style={{ height: `${CARD_ART_HEIGHT}px` }}

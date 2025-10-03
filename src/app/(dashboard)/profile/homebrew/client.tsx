@@ -1,11 +1,12 @@
 ﻿'use client';
 
 import * as React from 'react';
-import { ChevronDown, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { ChevronDown, Download, LayoutGrid, List as ListIcon, Loader2 } from 'lucide-react';
 
 import type {
   AdversaryDetails,
   CardDetails,
+  CardSettings,
   UserAdversary,
   UserCard,
 } from '@/lib/types';
@@ -23,6 +24,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useRouter } from 'next/navigation';
 import { useCardActions } from '@/store';
 import { mergeCardSettings } from '@/lib/constants';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { CheckedState } from '@radix-ui/react-checkbox';
+import { toast } from 'sonner';
+import { createRoot } from 'react-dom/client';
+import { toPng } from 'html-to-image';
+import { CardPreview } from '@/components/card-creation/preview';
 
 type CardLite = {
   id: string;
@@ -90,6 +97,9 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
   const [cardsFull, setCardsFull] = React.useState<JoinedCard[] | null>(null);
   const [adversariesFull, setAdversariesFull] = React.useState<JoinedAdversary[] | null>(null);
   const [loadingFull, setLoadingFull] = React.useState(false);
+  const [selectedCardIds, setSelectedCardIds] = React.useState<Set<string>>(() => new Set());
+  const [exportingCards, setExportingCards] = React.useState(false);
+  const [exportProgress, setExportProgress] = React.useState<{ current: number; total: number } | null>(null);
 
   const sortedCards = React.useMemo(() => {
     const sorted = [...cardsLite];
@@ -122,6 +132,126 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     setAdversariesFull(data.data.adversaries);
     setLoadingFull(false);
   };
+
+  const allCardsSelected = React.useMemo(() => {
+    if (!sortedCards.length) return false;
+    return sortedCards.every((card) => selectedCardIds.has(card.id));
+  }, [sortedCards, selectedCardIds]);
+
+  const someCardsSelected = sortedCards.length > 0 && selectedCardIds.size > 0 && !allCardsSelected;
+
+  const selectedCards = React.useMemo(() => {
+    if (!selectedCardIds.size) return [] as CardLite[];
+    return cardsLite.filter((card) => selectedCardIds.has(card.id));
+  }, [cardsLite, selectedCardIds]);
+
+  const selectedCardCount = selectedCards.length;
+  const selectedEquipmentCards = React.useMemo(
+    () => selectedCards.filter((card) => card.type === 'equipment'),
+    [selectedCards],
+  );
+  const selectedEquipmentCount = selectedEquipmentCards.length;
+
+  const handleToggleAllCards = (checked: CheckedState) => {
+    setSelectedCardIds(() => {
+      if (checked === true) {
+        return new Set(sortedCards.map((card) => card.id));
+      }
+      return new Set();
+    });
+  };
+
+  const handleToggleSingleCard = (cardId: string, checked: CheckedState) => {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (checked === true) {
+        next.add(cardId);
+      } else {
+        next.delete(cardId);
+      }
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    setSelectedCardIds((prev) => {
+      if (!prev.size) return prev;
+      const validIds = new Set(cardsLite.map((card) => card.id));
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (validIds.has(id)) {
+          next.add(id);
+        }
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [cardsLite]);
+
+  const handleExportSelectedCards = React.useCallback(async () => {
+    if (exportingCards) return;
+    if (!selectedEquipmentCards.length) {
+      toast.error('Bitte wähle mindestens eine Item-Karte aus.');
+      return;
+    }
+    try {
+      setExportingCards(true);
+      setExportProgress({ current: 0, total: selectedEquipmentCards.length });
+      const JSZipModule = await import('jszip');
+      const zip = new JSZipModule.default();
+      let exportedCount = 0;
+      for (let index = 0; index < selectedEquipmentCards.length; index += 1) {
+        const cardMeta = selectedEquipmentCards[index];
+        setExportProgress({ current: index, total: selectedEquipmentCards.length });
+        try {
+          const res = await fetch(`/api/user/card/${cardMeta.id}`);
+          if (!res.ok) {
+            throw new Error(`Fehler beim Laden der Karte ${cardMeta.name} (${res.status})`);
+          }
+          const json = await res.json();
+          const data = json?.data as { userCard: UserCard; cardPreview: CardDetails } | undefined;
+          if (!json?.success || !data?.cardPreview) {
+            throw new Error('Karten-Details nicht verfügbar.');
+          }
+          if (data.cardPreview.type !== 'equipment') {
+            continue;
+          }
+          const mergedSettings = mergeCardSettings(
+            data.cardPreview.settings ?? undefined,
+          );
+          const dataUrl = await renderCardPreviewToPng(data.cardPreview, mergedSettings);
+          const filenameBase = slugify(data.cardPreview.name || cardMeta.name || 'card');
+          zip.file(`${filenameBase || 'card'}.png`, dataUrl.split(',')[1] ?? '', {
+            base64: true,
+          });
+          exportedCount += 1;
+          setExportProgress({ current: index + 1, total: selectedEquipmentCards.length });
+        } catch (cardError) {
+          console.error(cardError);
+        }
+      }
+      if (!exportedCount) {
+        toast.error('Keine Karten konnten exportiert werden.');
+        return;
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      const dateStamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+      anchor.download = `daggerheart-items-${dateStamp}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      toast.success(`Export abgeschlossen: ${exportedCount} PNGs heruntergeladen.`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Der Export ist fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setExportProgress(null);
+      setExportingCards(false);
+    }
+  }, [exportingCards, selectedEquipmentCards]);
 
   const handleSetView = async (v: 'table' | 'list' | 'grid') => {
     setView(v);
@@ -221,10 +351,54 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
         </CollapsibleTrigger>
         <CollapsibleContent className={cn('pt-2', view === 'table' ? '' : view === 'list' ? 'space-y-2' : '')}>
           {view === 'table' ? (
-            <div className='rounded-md border'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
+            <div className='space-y-2'>
+              {selectedCardCount > 0 && (
+                <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm'>
+                  <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2'>
+                    <span>{selectedCardCount} selected</span>
+                    <span className='text-muted-foreground'>
+                      {selectedEquipmentCount} item card{selectedEquipmentCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    {exportingCards && exportProgress && (
+                      <span className='text-muted-foreground text-xs sm:text-sm'>
+                        Exporting {Math.min(exportProgress.current, exportProgress.total)}/
+                        {exportProgress.total}
+                      </span>
+                    )}
+                    <Button
+                      size='sm'
+                      className='flex items-center gap-1'
+                      onClick={handleExportSelectedCards}
+                      disabled={exportingCards}
+                    >
+                      {exportingCards ? (
+                        <>
+                          <Loader2 className='size-4 animate-spin' />
+                          Exporting…
+                        </>
+                      ) : (
+                        <>
+                          <Download className='size-4' />
+                          Export PNGs
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className='rounded-md border'>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className='w-10'>
+                        <Checkbox
+                          aria-label='Select all cards'
+                          checked={allCardsSelected ? true : someCardsSelected ? 'indeterminate' : false}
+                          onCheckedChange={handleToggleAllCards}
+                        />
+                      </TableHead>
                     {[
                       { key: 'name', label: 'Name' },
                       { key: 'tier', label: 'Tier' },
@@ -276,6 +450,14 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                         } catch {}
                       }}
                     >
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          aria-label={`Select ${c.name}`}
+                          checked={selectedCardIds.has(c.id)}
+                          onCheckedChange={(checked) => handleToggleSingleCard(c.id, checked)}
+                          onClick={(event) => event.stopPropagation()}
+                        />
+                      </TableCell>
                       <TableCell className='font-medium'>{c.name}</TableCell>
                       <TableCell>{c.tier ?? ''}</TableCell>
                       <TableCell className='capitalize'>{c.type}</TableCell>
@@ -284,7 +466,8 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                     </TableRow>
                   ))}
                 </TableBody>
-              </Table>
+                </Table>
+              </div>
             </div>
           ) : view === 'list' ? (
             loadingFull ? (
@@ -384,3 +567,70 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
   );
 };
 
+const slugify = (value: string) =>
+  value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase();
+
+const waitForImages = async (node: HTMLElement) => {
+  const elements = Array.from(node.querySelectorAll('img'));
+  await Promise.all(
+    elements.map((img) => {
+      if (img.complete) {
+        return Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        const handle = () => {
+          img.removeEventListener('load', handle);
+          img.removeEventListener('error', handle);
+          resolve();
+        };
+        img.addEventListener('load', handle, { once: true });
+        img.addEventListener('error', handle, { once: true });
+      });
+    }),
+  );
+};
+
+const renderCardPreviewToPng = async (
+  card: CardDetails,
+  settings: CardSettings,
+) => {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.pointerEvents = 'none';
+  container.style.opacity = '0';
+  container.style.display = 'inline-block';
+  container.style.zIndex = '-1';
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  try {
+    await new Promise<void>((resolve) => {
+      root.render(<CardPreview card={card} settings={settings} />);
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    let node = container.firstElementChild as HTMLElement | null;
+    if (!node) {
+      // React 19 transitions sometimes require an additional frame
+      await new Promise((resolve) => setTimeout(resolve, 16));
+      node = container.firstElementChild as HTMLElement | null;
+    }
+    if (!node) {
+      throw new Error('Karten-Vorschau konnte nicht gerendert werden.');
+    }
+    await waitForImages(node);
+    return await toPng(node, {
+      cacheBust: true,
+      pixelRatio: 2,
+      imagePlaceholder: undefined,
+    });
+  } finally {
+    root.unmount();
+    container.remove();
+  }
+};

@@ -1,9 +1,23 @@
 import { useCardStore } from '@/store';
+import type { CardDetails } from '@/lib/types';
 
-export const Equipment = () => {
+type EquipmentProps = {
+  cardOverride?: Pick<
+    CardDetails,
+    'tier' | 'tierEnabled' | 'hands' | 'handsEnabled' | 'armor' | 'armorEnabled'
+  >;
+};
+
+export const Equipment: React.FC<EquipmentProps> = ({ cardOverride }) => {
+  const fallbackCard = useCardStore((store) => store.card);
   const {
-    card: { tier, tierEnabled, hands, handsEnabled, armor, armorEnabled },
-  } = useCardStore();
+    tier,
+    tierEnabled,
+    hands,
+    handsEnabled,
+    armor,
+    armorEnabled,
+  } = cardOverride ?? fallbackCard;
   return (
     <>
       {tierEnabled && (
