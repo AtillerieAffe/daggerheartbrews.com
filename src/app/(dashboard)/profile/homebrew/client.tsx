@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import * as React from 'react';
-import { ChevronDown, Download, LayoutGrid, List as ListIcon, Loader2 } from 'lucide-react';
+import { ChevronDown, Download, LayoutGrid, List as ListIcon, Loader2, Trash2 } from 'lucide-react';
 
 import type {
   AdversaryDetails,
@@ -30,9 +30,18 @@ import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import { toPng } from 'html-to-image';
 import { CardPreview } from '@/components/card-creation/preview';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type CardLite = {
   id: string;
+  userCardId: string;
   name: string;
   type: string;
   subtitle: string | null;
@@ -100,6 +109,9 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
   const [selectedCardIds, setSelectedCardIds] = React.useState<Set<string>>(() => new Set());
   const [exportingCards, setExportingCards] = React.useState(false);
   const [exportProgress, setExportProgress] = React.useState<{ current: number; total: number } | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [deletingCards, setDeletingCards] = React.useState(false);
+  const [deleteProgress, setDeleteProgress] = React.useState<{ current: number; total: number } | null>(null);
 
   const sortedCards = React.useMemo(() => {
     const sorted = [...cardsLite];
@@ -151,6 +163,10 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     [selectedCards],
   );
   const selectedEquipmentCount = selectedEquipmentCards.length;
+  const selectedCardNames = React.useMemo(
+    () => selectedCards.map((card) => card.name || 'Unbenannte Karte'),
+    [selectedCards],
+  );
 
   const handleToggleAllCards = (checked: CheckedState) => {
     setSelectedCardIds(() => {
@@ -186,6 +202,12 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
       return next.size === prev.size ? prev : next;
     });
   }, [cardsLite]);
+
+  React.useEffect(() => {
+    if (!selectedCardCount) {
+      setDeleteDialogOpen(false);
+    }
+  }, [selectedCardCount]);
 
   const handleExportSelectedCards = React.useCallback(async () => {
     if (exportingCards) return;
@@ -252,6 +274,64 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
       setExportingCards(false);
     }
   }, [exportingCards, selectedEquipmentCards]);
+
+  const handleConfirmDeleteSelectedCards = React.useCallback(async () => {
+    if (deletingCards) return;
+    const targets = [...selectedCards];
+    if (!targets.length) {
+      toast.error('Bitte wähle mindestens eine Karte aus.');
+      return;
+    }
+    try {
+      setDeletingCards(true);
+      setDeleteProgress({ current: 0, total: targets.length });
+      const failed: string[] = [];
+      for (let index = 0; index < targets.length; index += 1) {
+        const card = targets[index];
+        const userCardId = card.userCardId;
+        setDeleteProgress({ current: index, total: targets.length });
+        try {
+          if (!userCardId) {
+            throw new Error(`Keine Benutzerkarten-ID für ${card.name || card.id}`);
+          }
+          const res = await fetch(`/api/community/cards/${userCardId}`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) {
+            throw new Error(`Fehler beim Löschen von ${card.name}`);
+          }
+        } catch (err) {
+          console.error(err);
+          failed.push(card.name || card.id);
+        } finally {
+          setDeleteProgress({ current: index + 1, total: targets.length });
+        }
+      }
+      setDeleteProgress({ current: targets.length, total: targets.length });
+      setSelectedCardIds((prev) => {
+        const next = new Set(prev);
+        for (const card of targets) {
+          next.delete(card.id);
+        }
+        return next;
+      });
+      router.refresh();
+      if (failed.length) {
+        toast.error(
+          `Einige Karten konnten nicht gelöscht werden: ${failed.join(', ')}`,
+        );
+      } else {
+        toast.success(`${targets.length} Karte${targets.length === 1 ? '' : 'n'} gelöscht.`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Löschen fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setDeleteProgress(null);
+      setDeletingCards(false);
+      setDeleteDialogOpen(false);
+    }
+  }, [deletingCards, router, selectedCards]);
 
   const handleSetView = async (v: 'table' | 'list' | 'grid') => {
     setView(v);
@@ -367,11 +447,17 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                         {exportProgress.total}
                       </span>
                     )}
+                    {deletingCards && deleteProgress && (
+                      <span className='text-muted-foreground text-xs sm:text-sm'>
+                        Deleting {Math.min(deleteProgress.current, deleteProgress.total)}/
+                        {deleteProgress.total}
+                      </span>
+                    )}
                     <Button
                       size='sm'
                       className='flex items-center gap-1'
                       onClick={handleExportSelectedCards}
-                      disabled={exportingCards}
+                      disabled={exportingCards || deletingCards}
                     >
                       {exportingCards ? (
                         <>
@@ -382,6 +468,25 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                         <>
                           <Download className='size-4' />
                           Export PNGs
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='destructive'
+                      className='flex items-center gap-1'
+                      onClick={() => setDeleteDialogOpen(true)}
+                      disabled={deletingCards || exportingCards}
+                    >
+                      {deletingCards ? (
+                        <>
+                          <Loader2 className='size-4 animate-spin' />
+                          Deleting…
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className='size-4' />
+                          Delete
                         </>
                       )}
                     </Button>
@@ -563,6 +668,50 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
           )}
         </CollapsibleContent>
       </Collapsible>
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Karten löschen?</DialogTitle>
+            <DialogDescription>
+              {selectedCardCount === 1
+                ? `Die Karte “${selectedCardNames[0] || 'Unbenannte Karte'}” wird dauerhaft gelöscht.`
+                : `${selectedCardCount} Karten werden dauerhaft gelöscht.`}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCardCount > 1 && (
+            <div className='max-h-48 space-y-1 overflow-y-auto rounded-md border border-muted-foreground/20 bg-muted/30 p-3 text-sm'>
+              {selectedCards.map((card) => (
+                <div key={card.userCardId || card.id} className='truncate'>
+                  {card.name || 'Unbenannte Karte'}
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deletingCards}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={handleConfirmDeleteSelectedCards}
+              disabled={deletingCards}
+            >
+              {deletingCards ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Löschen…
+                </>
+              ) : (
+                'Löschen'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

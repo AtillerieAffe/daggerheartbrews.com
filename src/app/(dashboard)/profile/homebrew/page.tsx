@@ -95,6 +95,7 @@ export default async function Page() {
     // naive extraction of damage type e.g., "(physical)" or "(magical)"
     const damageType = (text || '').match(/\((physical|magical|tech)\)/i)?.[1]?.toLowerCase() || '';
     return {
+      userCardId: (row.user_cards as any)?.id as string,
       id: (row.card_previews as any)?.id as string,
       name: (row.card_previews as any)?.name as string,
       type: (row.card_previews as any)?.type as string,

@@ -55,6 +55,29 @@ export const SettingsForm = () => {
             }}
           />
         </div>
+        {/* Background opacity slider */}
+        <div className='mt-3 space-y-1'>
+          <label htmlFor='background-opacity' className='text-sm font-medium'>
+            Background opacity
+          </label>
+          <div className='flex items-center gap-3'>
+            <input
+              id='background-opacity'
+              type='range'
+              min={0}
+              max={100}
+              step={1}
+              value={settings.backgroundImageOpacity ?? 100}
+              onChange={(e) =>
+                setSettings({ backgroundImageOpacity: Number(e.target.value) })
+              }
+              className='w-full'
+            />
+            <span className='w-10 text-right text-sm tabular-nums'>
+              {(settings.backgroundImageOpacity ?? 100)}%
+            </span>
+          </div>
+        </div>
         {/* Image size slider */}
         <div className='mt-3 space-y-1'>
           <label htmlFor='image-size' className='text-sm font-medium'>

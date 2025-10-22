@@ -52,6 +52,9 @@ const AssistedRulesText: React.FC<AssistedRulesTextProps> = ({ editor }) => {
       case 'feature':
         return `<strong><em>${text}:</em></strong> ${description}`;
       case 'spellcast':
+        if (text === 'default') {
+          return `<p style='text-align: left'><em>This weapon requires a spellcasting trait</em></p>`;
+        }
         return `<p style='text-align: center'><strong>SPELLCAST:</strong> ${text.toUpperCase()}</p>`;
       case 'weapon':
         return `<p style='text-align: center'><strong>${capitalize(weaponText.trait)} ${capitalize(weaponText.distance)}</strong> - ${weaponText.amount} (${capitalize(weaponText.type)})</p>`;
@@ -113,6 +116,7 @@ const AssistedRulesText: React.FC<AssistedRulesTextProps> = ({ editor }) => {
             <SelectContent>
               <SelectGroup>
                 <SelectLabel>Trait</SelectLabel>
+                <SelectItem value='default'>Default</SelectItem>
                 {traitTypes.map((t) => (
                   <SelectItem key={t} value={t} className='capitalize'>
                     {t}

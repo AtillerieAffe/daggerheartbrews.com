@@ -58,6 +58,8 @@ export type CardSettings = {
   imageGlowRadius?: number;
   // Glow strength/intensity (0-1)
   imageGlowStrength?: number;
+  // Background art opacity percentage (0-100)
+  backgroundImageOpacity?: number;
 };
 
 export type CardDetails = {

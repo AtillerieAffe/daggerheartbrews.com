@@ -15,6 +15,7 @@ export const createInitialCardSettings = (): CardSettings => ({
   imageGlowColor: '#ffffff',
   imageGlowRadius: 12,
   imageGlowStrength: 0.7,
+  backgroundImageOpacity: 100,
 });
 
 export const createInitialCardDetails = (): CardDetails => ({

@@ -36,6 +36,17 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   ...props
 }) => {
   const resolvedSettings = mergeCardSettings(settings);
+  const defaultSpellcastMessage = 'This weapon requires a spellcasting trait';
+  const { sanitizedText, hasDefaultSpellcastMessage } = React.useMemo(() => {
+    const rawText = card.text ?? '';
+    const defaultSpellcastPattern =
+      /<p[^>]*>\s*<em>This weapon requires a spellcasting trait<\/em>\s*<\/p>/gi;
+    const nextText = rawText.replace(defaultSpellcastPattern, '');
+    return {
+      sanitizedText: nextText,
+      hasDefaultSpellcastMessage: nextText !== rawText,
+    };
+  }, [card.text]);
   const imageTransform = [
     `translateY(${resolvedSettings.imageOffsetY ?? 0}px)`,
     resolvedSettings.imageFlipHorizontal ? 'scaleX(-1)' : null,
@@ -44,6 +55,10 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
   ]
     .filter((value): value is string => Boolean(value))
     .join(' ');
+  const backgroundOpacity = Math.max(
+    0,
+    Math.min(100, resolvedSettings.backgroundImageOpacity ?? 100),
+  ) / 100;
   return (
     <div
       className={cn(
@@ -69,6 +84,7 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               className='absolute inset-0 z-[5] h-full w-full object-cover'
               src={card.backgroundImage}
               alt='Background'
+              style={{ opacity: backgroundOpacity }}
             />
           ) : null}
           {card.image ? (
@@ -131,8 +147,16 @@ export const CardPreview: React.FC<CardPreviewProps> = ({
               <div
                 className='w-full space-y-2 leading-none text-pretty'
                 style={{ fontSize: 12 }}
-                dangerouslySetInnerHTML={{ __html: card.text || '' }}
+                dangerouslySetInnerHTML={{ __html: sanitizedText }}
               />
+              {hasDefaultSpellcastMessage ? (
+                <p
+                  className='w-full text-left italic'
+                  style={{ fontSize: 12 }}
+                >
+                  {defaultSpellcastMessage}
+                </p>
+              ) : null}
               <Thresholds
                 thresholds={card.thresholds}
                 thresholdsEnabled={card.thresholdsEnabled}

@@ -14,6 +14,7 @@ export const initialSettings: CardSettings = {
   imageGlowColor: '#ffffff',
   imageGlowRadius: 12,
   imageGlowStrength: 0.7,
+  backgroundImageOpacity: 100,
 };
 
 export const mergeCardSettings = (
