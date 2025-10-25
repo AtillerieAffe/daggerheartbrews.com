@@ -12,6 +12,7 @@ import {
   userCards,
 } from '@/lib/database/schema';
 import { HomebrewClient } from './client';
+import type { AdversaryLite } from './client';
 import { getUserPreferences } from '@/actions/user-preferences';
 
 export default async function Page() {
@@ -113,7 +114,17 @@ export default async function Page() {
         id: adversaryPreviews.id,
         name: adversaryPreviews.name,
         type: adversaryPreviews.type,
+        subtype: adversaryPreviews.subtype,
         tier: adversaryPreviews.tier,
+        difficulty: adversaryPreviews.difficulty,
+        thresholds: adversaryPreviews.thresholds,
+        hp: adversaryPreviews.hp,
+        stress: adversaryPreviews.stress,
+        attack: adversaryPreviews.attack,
+        weapon: adversaryPreviews.weapon,
+        distance: adversaryPreviews.distance,
+        damageType: adversaryPreviews.damageType,
+        damageAmount: adversaryPreviews.damageAmount,
       },
     })
     .from(userAdversaries)
@@ -123,10 +134,62 @@ export default async function Page() {
     )
     .where(eq(userAdversaries.userId, session.user.id));
 
+  const toThresholdTuple = (value: unknown): [number, number] | null => {
+    if (!value) return null;
+    if (Array.isArray(value) && value.length === 2) {
+      const [first, second] = value;
+      const firstNum = typeof first === 'number' ? first : Number(first);
+      const secondNum = typeof second === 'number' ? second : Number(second);
+      return [firstNum, secondNum];
+    }
+    if (typeof value === 'object' && value !== null && 'x' in value && 'y' in value) {
+      const point = value as { x: number; y: number };
+      return [Number(point.x), Number(point.y)];
+    }
+    return null;
+  };
+
+  const normalizeNumberish = (value: unknown): number | null => {
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const numeric = Number(value);
+      return Number.isFinite(numeric) ? numeric : null;
+    }
+    return null;
+  };
+
+  const adversariesLite = adversaryData.reduce<AdversaryLite[]>((acc, row) => {
+    const preview = row.adversary_previews as Partial<AdversaryDetails> | null;
+    const userAdv = row.user_adversaries as { id?: string } | null;
+    if (!preview?.id || !userAdv?.id) {
+      return acc;
+    }
+    acc.push({
+      id: preview.id,
+      userAdversaryId: userAdv.id,
+      name: preview.name ?? '',
+      type: preview.type ?? '',
+      subtype: preview.subtype ?? '',
+      tier: normalizeNumberish(preview.tier),
+      difficulty: preview.difficulty ?? '',
+      thresholds: toThresholdTuple(preview.thresholds),
+      hp: normalizeNumberish(preview.hp),
+      stress: normalizeNumberish(preview.stress),
+      attack: preview.attack ?? '',
+      weapon: preview.weapon ?? '',
+      distance: preview.distance ?? '',
+      damageAmount: preview.damageAmount ?? '',
+      damageType: preview.damageType ?? '',
+    });
+    return acc;
+  }, []);
+
   return (
     <HomebrewClient
       cardsLite={cardsLite as any}
-      adversariesLite={adversaryData as any}
+      adversariesLite={adversariesLite}
       initialView={(prefs as any).homebrewView || 'table'}
       initialSortList={(multiSort.length ? multiSort : [{ key: sortKey, dir: sortDir }]) as any}
     />

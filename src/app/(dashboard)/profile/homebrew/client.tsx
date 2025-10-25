@@ -22,7 +22,7 @@ import { PersonalAdversaryTile, PersonalCardTile } from '@/components/post/perso
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useRouter } from 'next/navigation';
-import { useCardActions } from '@/store';
+import { useAdversaryActions, useCardActions } from '@/store';
 import { mergeCardSettings } from '@/lib/constants';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { CheckedState } from '@radix-ui/react-checkbox';
@@ -59,23 +59,131 @@ type JoinedAdversary = {
   adversary_previews: AdversaryDetails | null;
 };
 
+export type AdversaryLite = {
+  id: string;
+  userAdversaryId: string;
+  name: string;
+  type: string | null;
+  subtype: string | null;
+  tier: number | null;
+  difficulty: string | null;
+  thresholds: [number, number] | null;
+  hp: number | null;
+  stress: number | null;
+  attack: string | null;
+  weapon: string | null;
+  distance: string | null;
+  damageAmount: string | null;
+  damageType: string | null;
+};
+
 type SortRule = {
   key: 'name' | 'type' | 'tier' | 'subtitle' | 'damageType';
   dir: 'asc' | 'desc';
 };
 
+type AdversarySortRule = {
+  key:
+    | 'name'
+    | 'tier'
+    | 'difficulty'
+    | 'subtype'
+    | 'thresholds'
+    | 'hp'
+    | 'stress'
+    | 'attack'
+    | 'distance'
+    | 'damage';
+  dir: 'asc' | 'desc';
+};
+
 type Props = {
   cardsLite: CardLite[];
-  adversariesLite: { user_adversaries: { id: string }; adversary_previews: { id: string; name: string; type: string; tier: number | null } | null }[];
+  adversariesLite: AdversaryLite[];
   initialView?: 'table' | 'list' | 'grid';
   initialSortList?: SortRule[];
+};
+
+const normalizeSortString = (value: string | null | undefined) =>
+  (value ?? '').toString().toLowerCase();
+
+const numericOrFallback = (value: number | string | null | undefined) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY;
+  }
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
+};
+
+const formatThresholdDisplay = (thresholds: [number, number] | null) => {
+  if (!thresholds) return '';
+  const [first, second] = thresholds;
+  const firstNum = typeof first === 'number' ? first : Number(first);
+  const secondNum = typeof second === 'number' ? second : Number(second);
+  const firstText = Number.isFinite(firstNum) ? `${firstNum}` : '';
+  const secondText = Number.isFinite(secondNum) ? `${secondNum}` : '';
+  if (firstText && secondText) {
+    return `${firstText} / ${secondText}`;
+  }
+  return firstText || secondText;
+};
+
+const getThresholdSortValue = (thresholds: [number, number] | null) => {
+  if (!thresholds) return Number.NEGATIVE_INFINITY;
+  const [first] = thresholds;
+  const numeric = typeof first === 'number' ? first : Number(first);
+  return Number.isFinite(numeric) ? numeric : Number.NEGATIVE_INFINITY;
+};
+
+const getAttackSortValue = (attack: string | null | undefined) => {
+  if (!attack) return Number.NEGATIVE_INFINITY;
+  const match = attack.match(/-?\d+/);
+  return match ? Number.parseInt(match[0], 10) : Number.NEGATIVE_INFINITY;
+};
+
+const getDamageSortValue = (damageAmount: string | null | undefined) => {
+  if (!damageAmount) return Number.NEGATIVE_INFINITY;
+  const numeric = Number(damageAmount);
+  if (Number.isFinite(numeric)) {
+    return numeric;
+  }
+  const match = damageAmount.match(/-?\d+/);
+  return match ? Number.parseInt(match[0], 10) : Number.NEGATIVE_INFINITY;
+};
+
+const formatDamageDisplay = (
+  amount: string | null | undefined,
+  type: string | null | undefined,
+) => {
+  const amountText = (amount ?? '').toString().trim();
+  const typeText = (type ?? '').toString().trim();
+  if (amountText && typeText) {
+    return `${amountText} (${typeText})`;
+  }
+  return amountText || typeText;
 };
 
 export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, initialView = 'table', initialSortList = [{ key: 'name', dir: 'asc' }] }) => {
   const [view, setView] = React.useState<'table' | 'list' | 'grid'>(initialView);
   const [sortList, setSortList] = React.useState<SortRule[]>(initialSortList);
+  const [adversarySortList, setAdversarySortList] = React.useState<AdversarySortRule[]>([
+    { key: 'name', dir: 'asc' },
+  ]);
   const router = useRouter();
   const { setUserCard, setCardDetails, setSettings } = useCardActions();
+  const { setAdversaryDetails, setUserAdversary } = useAdversaryActions();
+  const adversaryColumns: { key: AdversarySortRule['key']; label: string }[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'tier', label: 'Tier' },
+    { key: 'difficulty', label: 'Difficulty' },
+    { key: 'subtype', label: 'Type' },
+    { key: 'thresholds', label: 'Thresholds' },
+    { key: 'hp', label: 'HP' },
+    { key: 'stress', label: 'Stress' },
+    { key: 'attack', label: 'Atk Mod' },
+    { key: 'distance', label: 'Range' },
+    { key: 'damage', label: 'Damage' },
+  ];
 
   // On mount, re-fetch preferences to ensure we use the exact saved
   // multi-sort from DB (covers any SSR parsing oddities or caching).
@@ -134,6 +242,34 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     });
     return sorted;
   }, [cardsLite, sortList]);
+
+  const sortedAdversaries = React.useMemo(() => {
+    const sorted = [...adversariesLite];
+    if (!sorted.length) return sorted;
+    const getters: Record<AdversarySortRule['key'], (x: AdversaryLite) => any> = {
+      name: (x) => normalizeSortString(x.name),
+      tier: (x) => numericOrFallback(x.tier),
+      difficulty: (x) => normalizeSortString(x.difficulty),
+      subtype: (x) => normalizeSortString(x.subtype || x.type),
+      thresholds: (x) => getThresholdSortValue(x.thresholds),
+      hp: (x) => numericOrFallback(x.hp),
+      stress: (x) => numericOrFallback(x.stress),
+      attack: (x) => getAttackSortValue(x.attack),
+      distance: (x) => normalizeSortString(x.distance),
+      damage: (x) => getDamageSortValue(x.damageAmount),
+    };
+    sorted.sort((a, b) => {
+      for (const rule of adversarySortList) {
+        const dir = rule.dir === 'asc' ? 1 : -1;
+        const av = getters[rule.key](a);
+        const bv = getters[rule.key](b);
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+      }
+      return 0;
+    });
+    return sorted;
+  }, [adversariesLite, adversarySortList]);
 
   const ensureFullData = async () => {
     if (cardsFull && adversariesFull) return;
@@ -383,6 +519,40 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     });
   };
 
+  const toggleAdversarySort = (
+    key: AdversarySortRule['key'],
+    e?: React.MouseEvent<HTMLElement>,
+  ) => {
+    setAdversarySortList((list) => {
+      let next = [...list];
+      const idx = next.findIndex((r) => r.key === key);
+      const isMulti = !!(e && (e.shiftKey || e.metaKey || e.ctrlKey));
+      if (!isMulti) {
+        const current = idx === 0 ? next[0] : { key, dir: 'asc' as const };
+        const dir = idx === 0 && current.dir === 'asc' ? 'desc' : 'asc';
+        next = [{ key, dir }];
+      } else {
+        if (idx === -1) {
+          const numericDefaults: AdversarySortRule['key'][] = [
+            'tier',
+            'thresholds',
+            'hp',
+            'stress',
+            'attack',
+            'damage',
+          ];
+          const defaultDir: AdversarySortRule['dir'] = numericDefaults.includes(key)
+            ? 'desc'
+            : 'asc';
+          next.push({ key, dir: defaultDir });
+        } else {
+          next[idx] = { key, dir: next[idx].dir === 'asc' ? 'desc' : 'asc' };
+        }
+      }
+      return next;
+    });
+  };
+
   // Persist the current sort list whenever it changes (debounced)
   React.useEffect(() => {
     const id = setTimeout(() => {
@@ -623,19 +793,86 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Tier</TableHead>
-                    <TableHead>Type</TableHead>
+                    {adversaryColumns.map(({ key, label }) => {
+                      const idx = adversarySortList.findIndex((rule) => rule.key === key);
+                      const dir = idx !== -1 ? adversarySortList[idx].dir : undefined;
+                      return (
+                        <TableHead
+                          key={key}
+                          className='cursor-pointer select-none'
+                          onClick={(event) => toggleAdversarySort(key, event)}
+                          title='Click to sort; Shift/Ctrl-click to add as secondary'
+                        >
+                          <span className='inline-flex items-center gap-1'>
+                            {label}
+                            {idx !== -1 && (
+                              <span className='inline-flex items-center text-xs text-muted-foreground'>
+                                {dir === 'asc' ? '▲' : '▼'}
+                                <span className='ml-1 rounded bg-muted px-1'>{idx + 1}</span>
+                              </span>
+                            )}
+                          </span>
+                        </TableHead>
+                      );
+                    })}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {adversariesLite.map((a) => (
-                    <TableRow key={a.user_adversaries.id}>
-                      <TableCell className='font-medium'>{a.adversary_previews?.name}</TableCell>
-                      <TableCell>{a.adversary_previews?.tier ?? ''}</TableCell>
-                      <TableCell className='capitalize'>{a.adversary_previews?.type}</TableCell>
-                    </TableRow>
-                  ))}
+                  {sortedAdversaries.map((adversary) => {
+                    const key = adversary.id || adversary.userAdversaryId;
+                    const displayType = (adversary.subtype || adversary.type || '') ?? '';
+                    const thresholdsText = formatThresholdDisplay(adversary.thresholds);
+                    const damageText = formatDamageDisplay(
+                      adversary.damageAmount,
+                      adversary.damageType,
+                    );
+                    return (
+                      <TableRow
+                        key={key}
+                        className='cursor-pointer'
+                        onClick={async () => {
+                          if (!adversary.id) return;
+                          try {
+                            const res = await fetch(`/api/user/adversary/${adversary.id}`);
+                            const json = await res.json();
+                            if (json?.success && json.data) {
+                              const { userAdversary, adversaryPreview } = json.data as any;
+                              setUserAdversary(userAdversary);
+                              setAdversaryDetails(adversaryPreview);
+                              router.push('/adversary/create');
+                            } else {
+                              toast.error('Adversary konnte nicht geladen werden.');
+                            }
+                          } catch {
+                            toast.error('Adversary konnte nicht geladen werden.');
+                          }
+                        }}
+                      >
+                        <TableCell className='font-medium'>{adversary.name || '—'}</TableCell>
+                        <TableCell>{
+                          typeof adversary.tier === 'number' && Number.isFinite(adversary.tier)
+                            ? adversary.tier
+                            : adversary.tier ?? ''
+                        }</TableCell>
+                        <TableCell className='capitalize'>{adversary.difficulty || ''}</TableCell>
+                        <TableCell className='capitalize'>{displayType}</TableCell>
+                        <TableCell>{thresholdsText}</TableCell>
+                        <TableCell>{
+                          typeof adversary.hp === 'number' && Number.isFinite(adversary.hp)
+                            ? adversary.hp
+                            : adversary.hp ?? ''
+                        }</TableCell>
+                        <TableCell>{
+                          typeof adversary.stress === 'number' && Number.isFinite(adversary.stress)
+                            ? adversary.stress
+                            : adversary.stress ?? ''
+                        }</TableCell>
+                        <TableCell>{adversary.attack || ''}</TableCell>
+                        <TableCell className='capitalize'>{adversary.distance || ''}</TableCell>
+                        <TableCell>{damageText}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
