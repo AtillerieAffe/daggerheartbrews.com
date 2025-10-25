@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 
 import { useSession, logout } from '@/lib/auth/client';
 import { nav } from '@/lib/constants';
-import { useCardActions } from '@/store';
+import { useAdversaryActions, useCardActions } from '@/store';
 import {
   Sidebar,
   SidebarContent,
@@ -146,6 +146,7 @@ const AppSidebarContent = () => {
   const pathname = usePathname();
   const { data } = useSession();
   const { resetCard } = useCardActions();
+  const { resetAdversary } = useAdversaryActions();
   return (
     <SidebarContent>
       {nav
@@ -185,6 +186,9 @@ const AppSidebarContent = () => {
                             onClick={() => {
                               if (item.url === '/card/create') {
                                 resetCard();
+                              }
+                              if (item.url === '/adversary/create') {
+                                resetAdversary();
                               }
                             }}
                           >

@@ -1,19 +1,11 @@
 import { create } from 'zustand';
 
-import type { AdversaryState, AdversaryStore } from './types';
+import type { AdversaryStore } from './types';
 import { createActions } from './actions';
 import { createEffects } from './effects';
+import { createInitialAdversaryState } from './initial-state';
 
-const initialState: AdversaryState = {
-  loading: true,
-  adversary: {
-    name: '',
-    type: 'adversary',
-    thresholds: [5, 17],
-    hp: 5,
-    stress: 2,
-  },
-};
+const initialState = createInitialAdversaryState();
 
 export const useAdversaryStore = create<AdversaryStore>((set, get) => ({
   ...initialState,

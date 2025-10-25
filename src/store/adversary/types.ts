@@ -12,6 +12,7 @@ export type AdversaryActions = {
   setAdversaryDetails(details: Partial<AdversaryDetails>): void;
   setUserAdversary(userAdversary: UserAdversary): void;
   setPreviewStatblockRef(ref: React.RefObject<HTMLDivElement | null>): void;
+  resetAdversary(): void;
 };
 
 export type AdversaryEffects = {
