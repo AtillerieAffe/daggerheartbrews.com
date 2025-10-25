@@ -26,7 +26,7 @@ export const AdversaryCreationPreview = () => {
 
   React.useEffect(() => {
     setPreviewStatblockRef(ref);
-  }, [ref]);
+  }, [ref, setPreviewStatblockRef]);
 
   const handleClick = async () => {
     setPending(true);
@@ -48,7 +48,6 @@ export const AdversaryCreationPreview = () => {
       <AdversaryPreviewStatblock
         ref={ref}
         adversary={adversary}
-        className='w-full'
       />
       <div className='flex w-full gap-2'>
         <Button className='grow' onClick={downloadStatblock}>
