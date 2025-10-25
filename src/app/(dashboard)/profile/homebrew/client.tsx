@@ -220,6 +220,10 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deletingCards, setDeletingCards] = React.useState(false);
   const [deleteProgress, setDeleteProgress] = React.useState<{ current: number; total: number } | null>(null);
+  const [selectedAdversaryIds, setSelectedAdversaryIds] = React.useState<Set<string>>(() => new Set());
+  const [adversaryDeleteDialogOpen, setAdversaryDeleteDialogOpen] = React.useState(false);
+  const [deletingAdversaries, setDeletingAdversaries] = React.useState(false);
+  const [adversaryDeleteProgress, setAdversaryDeleteProgress] = React.useState<{ current: number; total: number } | null>(null);
 
   const sortedCards = React.useMemo(() => {
     const sorted = [...cardsLite];
@@ -270,6 +274,26 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
     });
     return sorted;
   }, [adversariesLite, adversarySortList]);
+
+  const allAdversariesSelected = React.useMemo(() => {
+    if (!sortedAdversaries.length) return false;
+    return sortedAdversaries.every((adversary) => selectedAdversaryIds.has(adversary.id));
+  }, [sortedAdversaries, selectedAdversaryIds]);
+
+  const someAdversariesSelected =
+    sortedAdversaries.length > 0 && selectedAdversaryIds.size > 0 && !allAdversariesSelected;
+
+  const selectedAdversaries = React.useMemo(() => {
+    if (!selectedAdversaryIds.size) return [] as AdversaryLite[];
+    return adversariesLite.filter((adversary) => selectedAdversaryIds.has(adversary.id));
+  }, [adversariesLite, selectedAdversaryIds]);
+
+  const selectedAdversaryCount = selectedAdversaries.length;
+
+  const selectedAdversaryNames = React.useMemo(
+    () => selectedAdversaries.map((adversary) => adversary.name || 'Unbenannter Gegner'),
+    [selectedAdversaries],
+  );
 
   const ensureFullData = async () => {
     if (cardsFull && adversariesFull) return;
@@ -344,6 +368,104 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
       setDeleteDialogOpen(false);
     }
   }, [selectedCardCount]);
+
+  const handleToggleAllAdversaries = (checked: CheckedState) => {
+    setSelectedAdversaryIds(() => {
+      if (checked === true) {
+        return new Set(sortedAdversaries.map((adversary) => adversary.id));
+      }
+      return new Set();
+    });
+  };
+
+  const handleToggleSingleAdversary = (adversaryId: string, checked: CheckedState) => {
+    setSelectedAdversaryIds((prev) => {
+      const next = new Set(prev);
+      if (checked === true) {
+        next.add(adversaryId);
+      } else {
+        next.delete(adversaryId);
+      }
+      return next;
+    });
+  };
+
+  React.useEffect(() => {
+    setSelectedAdversaryIds((prev) => {
+      if (!prev.size) return prev;
+      const validIds = new Set(adversariesLite.map((adversary) => adversary.id));
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (validIds.has(id)) {
+          next.add(id);
+        }
+      }
+      return next.size === prev.size ? prev : next;
+    });
+  }, [adversariesLite]);
+
+  React.useEffect(() => {
+    if (!selectedAdversaryCount) {
+      setAdversaryDeleteDialogOpen(false);
+    }
+  }, [selectedAdversaryCount]);
+
+  const handleConfirmDeleteSelectedAdversaries = React.useCallback(async () => {
+    if (deletingAdversaries) return;
+    const targets = [...selectedAdversaries];
+    if (!targets.length) {
+      toast.error('Bitte wähle mindestens einen Adversary aus.');
+      return;
+    }
+    try {
+      setDeletingAdversaries(true);
+      setAdversaryDeleteProgress({ current: 0, total: targets.length });
+      const failed: string[] = [];
+      for (let index = 0; index < targets.length; index += 1) {
+        const adversary = targets[index];
+        setAdversaryDeleteProgress({ current: index, total: targets.length });
+        try {
+          if (!adversary.userAdversaryId) {
+            throw new Error(`Keine Benutzer-ID für ${adversary.name || adversary.id}`);
+          }
+          const res = await fetch(`/api/community/adversary/${adversary.userAdversaryId}`, {
+            method: 'DELETE',
+          });
+          if (!res.ok) {
+            throw new Error(`Fehler beim Löschen von ${adversary.name}`);
+          }
+        } catch (err) {
+          console.error(err);
+          failed.push(adversary.name || adversary.id);
+        } finally {
+          setAdversaryDeleteProgress({ current: index + 1, total: targets.length });
+        }
+      }
+      setSelectedAdversaryIds((prev) => {
+        const next = new Set(prev);
+        for (const adversary of targets) {
+          next.delete(adversary.id);
+        }
+        return next;
+      });
+      router.refresh();
+      if (failed.length) {
+        toast.error(
+          `Einige Adversaries konnten nicht gelöscht werden: ${failed.join(', ')}`,
+        );
+      } else {
+        const noun = targets.length === 1 ? 'Adversary' : 'Adversaries';
+        toast.success(`${targets.length} ${noun} gelöscht.`);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error('Löschen der Adversaries fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setAdversaryDeleteProgress(null);
+      setDeletingAdversaries(false);
+      setAdversaryDeleteDialogOpen(false);
+    }
+  }, [deletingAdversaries, router, selectedAdversaries]);
 
   const handleExportSelectedCards = React.useCallback(async () => {
     if (exportingCards) return;
@@ -789,92 +911,145 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
         </CollapsibleTrigger>
         <CollapsibleContent className={cn('pt-2', view === 'list' ? 'space-y-2' : '')}>
           {view === 'table' ? (
-            <div className='rounded-md border'>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {adversaryColumns.map(({ key, label }) => {
-                      const idx = adversarySortList.findIndex((rule) => rule.key === key);
-                      const dir = idx !== -1 ? adversarySortList[idx].dir : undefined;
-                      return (
-                        <TableHead
-                          key={key}
-                          className='cursor-pointer select-none'
-                          onClick={(event) => toggleAdversarySort(key, event)}
-                          title='Click to sort; Shift/Ctrl-click to add as secondary'
-                        >
-                          <span className='inline-flex items-center gap-1'>
-                            {label}
-                            {idx !== -1 && (
-                              <span className='inline-flex items-center text-xs text-muted-foreground'>
-                                {dir === 'asc' ? '▲' : '▼'}
-                                <span className='ml-1 rounded bg-muted px-1'>{idx + 1}</span>
-                              </span>
-                            )}
-                          </span>
-                        </TableHead>
+            <div className='space-y-2'>
+              {selectedAdversaryCount > 0 && (
+                <div className='flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-muted/20 px-3 py-2 text-sm'>
+                  <div className='flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2'>
+                    <span>{selectedAdversaryCount} selected</span>
+                  </div>
+                  <div className='flex items-center gap-2'>
+                    {deletingAdversaries && adversaryDeleteProgress && (
+                      <span className='text-muted-foreground text-xs sm:text-sm'>
+                        Löschen {Math.min(adversaryDeleteProgress.current, adversaryDeleteProgress.total)}/
+                        {adversaryDeleteProgress.total}
+                      </span>
+                    )}
+                    <Button
+                      size='sm'
+                      variant='destructive'
+                      className='flex items-center gap-1'
+                      onClick={() => setAdversaryDeleteDialogOpen(true)}
+                      disabled={deletingAdversaries}
+                    >
+                      {deletingAdversaries ? (
+                        <>
+                          <Loader2 className='size-4 animate-spin' />
+                          Löschen…
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className='size-4' />
+                          Löschen
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className='rounded-md border'>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className='w-10'>
+                        <Checkbox
+                          aria-label='Select all adversaries'
+                          checked={allAdversariesSelected ? true : someAdversariesSelected ? 'indeterminate' : false}
+                          onCheckedChange={handleToggleAllAdversaries}
+                        />
+                      </TableHead>
+                      {adversaryColumns.map(({ key, label }) => {
+                        const idx = adversarySortList.findIndex((rule) => rule.key === key);
+                        const dir = idx !== -1 ? adversarySortList[idx].dir : undefined;
+                        return (
+                          <TableHead
+                            key={key}
+                            className='cursor-pointer select-none'
+                            onClick={(event) => toggleAdversarySort(key, event)}
+                            title='Click to sort; Shift/Ctrl-click to add as secondary'
+                          >
+                            <span className='inline-flex items-center gap-1'>
+                              {label}
+                              {idx !== -1 && (
+                                <span className='inline-flex items-center text-xs text-muted-foreground'>
+                                  {dir === 'asc' ? '▲' : '▼'}
+                                  <span className='ml-1 rounded bg-muted px-1'>{idx + 1}</span>
+                                </span>
+                              )}
+                            </span>
+                          </TableHead>
+                        );
+                      })}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedAdversaries.map((adversary) => {
+                      const key = adversary.id || adversary.userAdversaryId;
+                      const displayType = (adversary.subtype || adversary.type || '') ?? '';
+                      const thresholdsText = formatThresholdDisplay(adversary.thresholds);
+                      const damageText = formatDamageDisplay(
+                        adversary.damageAmount,
+                        adversary.damageType,
                       );
-                    })}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAdversaries.map((adversary) => {
-                    const key = adversary.id || adversary.userAdversaryId;
-                    const displayType = (adversary.subtype || adversary.type || '') ?? '';
-                    const thresholdsText = formatThresholdDisplay(adversary.thresholds);
-                    const damageText = formatDamageDisplay(
-                      adversary.damageAmount,
-                      adversary.damageType,
-                    );
-                    return (
-                      <TableRow
-                        key={key}
-                        className='cursor-pointer'
-                        onClick={async () => {
-                          if (!adversary.id) return;
-                          try {
-                            const res = await fetch(`/api/user/adversary/${adversary.id}`);
-                            const json = await res.json();
-                            if (json?.success && json.data) {
-                              const { userAdversary, adversaryPreview } = json.data as any;
-                              setUserAdversary(userAdversary);
-                              setAdversaryDetails(adversaryPreview);
-                              router.push('/adversary/create');
-                            } else {
+                      return (
+                        <TableRow
+                          key={key}
+                          className='cursor-pointer'
+                          onClick={async () => {
+                            if (!adversary.id) return;
+                            try {
+                              const res = await fetch(`/api/user/adversary/${adversary.id}`);
+                              const json = await res.json();
+                              if (json?.success && json.data) {
+                                const { userAdversary, adversaryPreview } = json.data as any;
+                                setUserAdversary(userAdversary);
+                                setAdversaryDetails(adversaryPreview);
+                                router.push('/adversary/create');
+                              } else {
+                                toast.error('Adversary konnte nicht geladen werden.');
+                              }
+                            } catch {
                               toast.error('Adversary konnte nicht geladen werden.');
                             }
-                          } catch {
-                            toast.error('Adversary konnte nicht geladen werden.');
-                          }
-                        }}
-                      >
-                        <TableCell className='font-medium'>{adversary.name || '—'}</TableCell>
-                        <TableCell>{
-                          typeof adversary.tier === 'number' && Number.isFinite(adversary.tier)
-                            ? adversary.tier
-                            : adversary.tier ?? ''
-                        }</TableCell>
-                        <TableCell className='capitalize'>{adversary.difficulty || ''}</TableCell>
-                        <TableCell className='capitalize'>{displayType}</TableCell>
-                        <TableCell>{thresholdsText}</TableCell>
-                        <TableCell>{
-                          typeof adversary.hp === 'number' && Number.isFinite(adversary.hp)
-                            ? adversary.hp
-                            : adversary.hp ?? ''
-                        }</TableCell>
-                        <TableCell>{
-                          typeof adversary.stress === 'number' && Number.isFinite(adversary.stress)
-                            ? adversary.stress
-                            : adversary.stress ?? ''
-                        }</TableCell>
-                        <TableCell>{adversary.attack || ''}</TableCell>
-                        <TableCell className='capitalize'>{adversary.distance || ''}</TableCell>
-                        <TableCell>{damageText}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          }}
+                        >
+                          <TableCell onClick={(event) => event.stopPropagation()}>
+                            <Checkbox
+                              aria-label={`Select ${adversary.name || 'Adversary'}`}
+                              checked={selectedAdversaryIds.has(adversary.id)}
+                              onCheckedChange={(checked) =>
+                                handleToggleSingleAdversary(adversary.id, checked)
+                              }
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          </TableCell>
+                          <TableCell className='font-medium'>{adversary.name || '—'}</TableCell>
+                          <TableCell>{
+                            typeof adversary.tier === 'number' && Number.isFinite(adversary.tier)
+                              ? adversary.tier
+                              : adversary.tier ?? ''
+                          }</TableCell>
+                          <TableCell className='capitalize'>{adversary.difficulty || ''}</TableCell>
+                          <TableCell className='capitalize'>{displayType}</TableCell>
+                          <TableCell>{thresholdsText}</TableCell>
+                          <TableCell>{
+                            typeof adversary.hp === 'number' && Number.isFinite(adversary.hp)
+                              ? adversary.hp
+                              : adversary.hp ?? ''
+                          }</TableCell>
+                          <TableCell>{
+                            typeof adversary.stress === 'number' && Number.isFinite(adversary.stress)
+                              ? adversary.stress
+                              : adversary.stress ?? ''
+                          }</TableCell>
+                          <TableCell>{adversary.attack || ''}</TableCell>
+                          <TableCell className='capitalize'>{adversary.distance || ''}</TableCell>
+                          <TableCell>{damageText}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           ) : view === 'list' ? (
             loadingFull ? (
@@ -938,6 +1113,50 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
               disabled={deletingCards}
             >
               {deletingCards ? (
+                <>
+                  <Loader2 className='size-4 animate-spin' />
+                  Löschen…
+                </>
+              ) : (
+                'Löschen'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={adversaryDeleteDialogOpen} onOpenChange={setAdversaryDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adversaries löschen?</DialogTitle>
+            <DialogDescription>
+              {selectedAdversaryCount === 1
+                ? `Der Adversary “${selectedAdversaryNames[0] || 'Unbenannter Gegner'}” wird dauerhaft gelöscht.`
+                : `${selectedAdversaryCount} Adversaries werden dauerhaft gelöscht.`}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAdversaryCount > 1 && (
+            <div className='max-h-48 space-y-1 overflow-y-auto rounded-md border border-muted-foreground/20 bg-muted/30 p-3 text-sm'>
+              {selectedAdversaries.map((adversary) => (
+                <div key={adversary.id} className='truncate'>
+                  {adversary.name || 'Unbenannter Gegner'}
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant='outline'
+              onClick={() => setAdversaryDeleteDialogOpen(false)}
+              disabled={deletingAdversaries}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant='destructive'
+              onClick={handleConfirmDeleteSelectedAdversaries}
+              disabled={deletingAdversaries}
+            >
+              {deletingAdversaries ? (
                 <>
                   <Loader2 className='size-4 animate-spin' />
                   Löschen…
