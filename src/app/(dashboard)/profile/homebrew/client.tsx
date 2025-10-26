@@ -30,6 +30,7 @@ import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import { toPng } from 'html-to-image';
 import { CardPreview } from '@/components/card-creation/preview';
+import { AdversaryPreviewStatblock } from '@/components/adversary-creation/preview';
 import {
   Dialog,
   DialogContent,
@@ -217,6 +218,8 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
   const [selectedCardIds, setSelectedCardIds] = React.useState<Set<string>>(() => new Set());
   const [exportingCards, setExportingCards] = React.useState(false);
   const [exportProgress, setExportProgress] = React.useState<{ current: number; total: number } | null>(null);
+  const [exportingAdversaries, setExportingAdversaries] = React.useState(false);
+  const [adversaryExportProgress, setAdversaryExportProgress] = React.useState<{ current: number; total: number } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [deletingCards, setDeletingCards] = React.useState(false);
   const [deleteProgress, setDeleteProgress] = React.useState<{ current: number; total: number } | null>(null);
@@ -532,6 +535,80 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
       setExportingCards(false);
     }
   }, [exportingCards, selectedEquipmentCards]);
+
+  const handleExportSelectedAdversaries = React.useCallback(async () => {
+    if (exportingAdversaries) return;
+    if (!selectedAdversaries.length) {
+      toast.error('Bitte wähle mindestens einen Adversary aus.');
+      return;
+    }
+    try {
+      setExportingAdversaries(true);
+      setAdversaryExportProgress({ current: 0, total: selectedAdversaries.length });
+      const JSZipModule = await import('jszip');
+      const zip = new JSZipModule.default();
+      let exportedFiles = 0;
+      for (let index = 0; index < selectedAdversaries.length; index += 1) {
+        const adversaryMeta = selectedAdversaries[index];
+        setAdversaryExportProgress({ current: index, total: selectedAdversaries.length });
+        try {
+          if (!adversaryMeta.id) {
+            throw new Error('Keine Adversary-ID vorhanden.');
+          }
+          const res = await fetch(`/api/user/adversary/${adversaryMeta.id}`);
+          if (!res.ok) {
+            throw new Error(`Fehler beim Laden von ${adversaryMeta.name || 'Adversary'} (${res.status}).`);
+          }
+          const json = await res.json();
+          const data = json?.data as { adversaryPreview?: AdversaryDetails } | undefined;
+          if (!json?.success || !data?.adversaryPreview) {
+            throw new Error('Adversary-Vorschau nicht verfügbar.');
+          }
+          const pages = await renderAdversaryPreviewPagesToPngs(data.adversaryPreview);
+          if (!pages.length) continue;
+          const baseName = slugify(data.adversaryPreview.name || adversaryMeta.name || 'adversary');
+          if (pages.length === 1) {
+            zip.file(`${baseName || 'adversary'}.png`, pages[0].split(',')[1] ?? '', {
+              base64: true,
+            });
+          } else {
+            pages.forEach((dataUrl, pageIndex) => {
+              const filename = `${baseName || 'adversary'}-${pageIndex + 1}-of-${pages.length}.png`;
+              zip.file(filename, dataUrl.split(',')[1] ?? '', {
+                base64: true,
+              });
+            });
+          }
+          exportedFiles += pages.length;
+        } catch (adversaryError) {
+          console.error(adversaryError);
+        } finally {
+          setAdversaryExportProgress({ current: index + 1, total: selectedAdversaries.length });
+        }
+      }
+      if (!exportedFiles) {
+        toast.error('Keine Adversaries konnten exportiert werden.');
+        return;
+      }
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = downloadUrl;
+      const dateStamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16);
+      anchor.download = `daggerheart-adversaries-${dateStamp}.zip`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+      toast.success(`Export abgeschlossen: ${exportedFiles} PNGs heruntergeladen.`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Der Adversary-Export ist fehlgeschlagen. Bitte versuche es erneut.');
+    } finally {
+      setAdversaryExportProgress(null);
+      setExportingAdversaries(false);
+    }
+  }, [exportingAdversaries, selectedAdversaries]);
 
   const handleConfirmDeleteSelectedCards = React.useCallback(async () => {
     if (deletingCards) return;
@@ -918,6 +995,12 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                     <span>{selectedAdversaryCount} selected</span>
                   </div>
                   <div className='flex items-center gap-2'>
+                    {exportingAdversaries && adversaryExportProgress && (
+                      <span className='text-muted-foreground text-xs sm:text-sm'>
+                        Exportiere {Math.min(adversaryExportProgress.current, adversaryExportProgress.total)}/
+                        {adversaryExportProgress.total}
+                      </span>
+                    )}
                     {deletingAdversaries && adversaryDeleteProgress && (
                       <span className='text-muted-foreground text-xs sm:text-sm'>
                         Löschen {Math.min(adversaryDeleteProgress.current, adversaryDeleteProgress.total)}/
@@ -926,10 +1009,28 @@ export const HomebrewClient: React.FC<Props> = ({ cardsLite, adversariesLite, in
                     )}
                     <Button
                       size='sm'
+                      className='flex items-center gap-1'
+                      onClick={handleExportSelectedAdversaries}
+                      disabled={exportingAdversaries || deletingAdversaries}
+                    >
+                      {exportingAdversaries ? (
+                        <>
+                          <Loader2 className='size-4 animate-spin' />
+                          Exportiere…
+                        </>
+                      ) : (
+                        <>
+                          <Download className='size-4' />
+                          Export PNGs
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size='sm'
                       variant='destructive'
                       className='flex items-center gap-1'
                       onClick={() => setAdversaryDeleteDialogOpen(true)}
-                      disabled={deletingAdversaries}
+                      disabled={deletingAdversaries || exportingAdversaries}
                     >
                       {deletingAdversaries ? (
                         <>
@@ -1234,6 +1335,66 @@ const renderCardPreviewToPng = async (
       pixelRatio: 2,
       imagePlaceholder: undefined,
     });
+  } finally {
+    root.unmount();
+    container.remove();
+  }
+};
+
+const renderAdversaryPreviewPagesToPngs = async (adversary: AdversaryDetails) => {
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
+  container.style.pointerEvents = 'none';
+  container.style.opacity = '0';
+  container.style.display = 'inline-block';
+  container.style.zIndex = '-1';
+  document.body.appendChild(container);
+  const root = createRoot(container);
+  let totalPages = 1;
+
+  const renderPage = async (pageIndex: number) => {
+    await new Promise<void>((resolve) => {
+      root.render(
+        <AdversaryPreviewStatblock
+          adversary={adversary}
+          page={pageIndex}
+          showControls={false}
+          onTotalPagesChange={(value) => {
+            totalPages = value;
+          }}
+        />,
+      );
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    let node = container.querySelector('[data-adversary-preview-root]') as HTMLElement | null;
+    if (!node) {
+      node = container.firstElementChild as HTMLElement | null;
+    }
+    if (!node) {
+      throw new Error('Adversary-Vorschau konnte nicht gerendert werden.');
+    }
+    await waitForImages(node);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      pixelRatio: 2,
+    });
+    return { dataUrl, totalPages };
+  };
+
+  try {
+    const images: string[] = [];
+    const first = await renderPage(0);
+    images.push(first.dataUrl);
+    let total = first.totalPages;
+    for (let pageIndex = 1; pageIndex < total; pageIndex += 1) {
+      const result = await renderPage(pageIndex);
+      images.push(result.dataUrl);
+      total = result.totalPages;
+    }
+    return images;
   } finally {
     root.unmount();
     container.remove();
