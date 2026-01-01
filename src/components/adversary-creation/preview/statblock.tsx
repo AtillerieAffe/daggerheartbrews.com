@@ -423,7 +423,7 @@ export const AdversaryPreviewStatblock = React.forwardRef<
   const formatThresholds = (n: number) => (n === 0 ? 'None' : n);
 
   const cardClasses = cn(
-    'aspect-card w-[300px] overflow-hidden rounded-md border text-black',
+    'aspect-card w-[424px] overflow-hidden rounded-md border text-black',
     type === 'adversary' && 'border-[#bcab84] bg-[#f4f0e5]',
     type === 'environment' && 'border-[#aaa8a9] bg-[#ededed]',
     className,

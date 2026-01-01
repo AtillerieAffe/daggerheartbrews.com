@@ -197,7 +197,7 @@ export const SettingsForm = () => {
                     id='glow-strength'
                     type='range'
                     min={0}
-                    max={100}
+                    max={400}
                     step={1}
                     value={Math.round((settings.imageGlowStrength ?? 0.7) * 100)}
                     onChange={(e) =>
@@ -205,7 +205,7 @@ export const SettingsForm = () => {
                     }
                     className='w-full'
                   />
-                  <span className='w-10 text-right text-sm tabular-nums'>
+                  <span className='w-16 text-right text-sm tabular-nums'>
                     {Math.round((settings.imageGlowStrength ?? 0.7) * 100)}%
                   </span>
                 </div>

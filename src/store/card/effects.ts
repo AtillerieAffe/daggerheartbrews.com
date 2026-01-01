@@ -2,6 +2,10 @@ import { toPng } from 'html-to-image';
 
 import type { CardClassOption, CardDomainOption } from '@/lib/types';
 import { fallbackCardOptions } from '@/lib/constants/card-options';
+import {
+  CARD_EXPORT_HEIGHT,
+  CARD_EXPORT_WIDTH,
+} from '@/lib/constants/card-layout';
 import type { ZustandGet, ZustandSet } from '../types';
 import type { CardEffects, CardState, CardStore } from './types';
 
@@ -12,12 +16,27 @@ const downloadImage =
     const { name, type } = card;
     try {
       if (preview?.current) {
-        await toPng(preview.current, { cacheBust: true }).then((data) => {
-          const link = document.createElement('a');
-          link.download = `daggerheart-${type}-${name}.png`;
-          link.href = data;
-          link.click();
+        const node = preview.current;
+        const rect = node.getBoundingClientRect();
+        const baseWidth = rect.width || CARD_EXPORT_WIDTH;
+        const baseHeight = rect.height || CARD_EXPORT_HEIGHT;
+        const scale = CARD_EXPORT_WIDTH / baseWidth;
+        const data = await toPng(node, {
+          cacheBust: true,
+          pixelRatio: 1,
+          width: CARD_EXPORT_WIDTH,
+          height: CARD_EXPORT_HEIGHT,
+          style: {
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            width: `${baseWidth}px`,
+            height: `${baseHeight}px`,
+          },
         });
+        const link = document.createElement('a');
+        link.download = `daggerheart-${type}-${name}.png`;
+        link.href = data;
+        link.click();
       }
     } catch (e) {
       console.error(e);

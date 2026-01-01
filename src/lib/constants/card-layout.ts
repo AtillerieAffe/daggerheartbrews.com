@@ -5,6 +5,11 @@ export const CARD_ASPECT_HEIGHT = 88;
 export const CARD_PREVIEW_HEIGHT =
   (CARD_PREVIEW_WIDTH * CARD_ASPECT_HEIGHT) / CARD_ASPECT_WIDTH;
 
+export const CARD_EXPORT_WIDTH = 1000;
+export const CARD_EXPORT_HEIGHT = Math.round(
+  (CARD_EXPORT_WIDTH * CARD_ASPECT_HEIGHT) / CARD_ASPECT_WIDTH,
+);
+
 // Space reserved for divider, name, rules text, etc.
 export const CARD_CONTENT_RESERVED_HEIGHT = 210;
 

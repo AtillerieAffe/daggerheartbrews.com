@@ -197,26 +197,6 @@ export const ImageForm = () => {
     200,
   );
 
-  const handleBgCropApply = React.useCallback(
-    async (area: Area | null, preview?: string, current?: string) => {
-      if (area && preview) {
-        const blob = await getCroppedImage(preview, area);
-        if (blob) {
-          const cropped = await fileToBase64(blob);
-          if (current !== cropped) {
-            setCardDetails({ backgroundImage: cropped });
-          }
-        }
-      }
-    },
-    [setCardDetails],
-  );
-
-  const handleBgCropChange = useDebouncedCallback(
-    (area: Area | null) => handleBgCropApply(area, bgFile?.preview, backgroundImage),
-    200,
-  );
-
   return (
     <FormContainer title='Card Image' collapsible defaultOpen>
       <div className='space-y-2'>
@@ -328,22 +308,6 @@ export const ImageForm = () => {
             </div>
           ) : null}
         </div>
-        <CollapsibleContent>
-          {bgFile?.preview ? (
-            <ImageCropper
-              key={bgFile.preview}
-              className='h-64 rounded'
-              image={bgFile.preview}
-              aspectRatio={CROP_ASPECT_RATIO}
-              minZoom={MIN_CROP_ZOOM}
-              zoomSensitivity={CROP_ZOOM_SENSITIVITY}
-              onCropChange={handleBgCropChange}
-            >
-              <ImageCropperImage />
-              <ImageCropperArea />
-            </ImageCropper>
-          ) : null}
-        </CollapsibleContent>
       </div>
     </FormContainer>
   );

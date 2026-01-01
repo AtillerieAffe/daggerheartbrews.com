@@ -30,7 +30,7 @@ export async function PATCH(
     const update: any = {};
     if (typeof body.name === 'string') update.name = body.name.trim();
     if (typeof body.color === 'string') update.color = body.color.trim();
-    if (typeof body.strength === 'number') update.strength = Math.max(0, Math.min(1, body.strength));
+    if (typeof body.strength === 'number') update.strength = Math.max(0, Math.min(4, body.strength));
     if (typeof body.radius === 'number') update.radius = Math.max(0, Math.min(200, body.radius));
 
     const [updated] = await db
@@ -66,4 +66,3 @@ export async function DELETE(
     return bad(e);
   }
 }
-

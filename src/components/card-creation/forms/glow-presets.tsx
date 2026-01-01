@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
+import { Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -16,7 +17,8 @@ import {
 } from '@/components/ui/select';
 import type { GlowPreset } from '@/lib/types';
 
-const formatStrength = (strength: number) => `${Math.round(Math.max(0, Math.min(1, strength)) * 100)}%`;
+const formatStrength = (strength: number) =>
+  `${Math.round(Math.max(0, strength) * 100)}%`;
 
 const formatRadius = (radius: number) => `${Math.round(radius)}px`;
 
@@ -39,10 +41,11 @@ export const GlowPresetControls: React.FC<GlowPresetControlsProps> = ({
   const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
   const [presetName, setPresetName] = React.useState('');
   const [savingPreset, setSavingPreset] = React.useState(false);
+  const [deletingPreset, setDeletingPreset] = React.useState(false);
 
   const colorValue = currentColor || '#ffffff';
   const strengthValue = Number.isFinite(currentStrength)
-    ? Math.max(0, Math.min(1, currentStrength))
+    ? Math.max(0, currentStrength)
     : 0.7;
   const radiusValue = Number.isFinite(currentRadius) ? currentRadius : 12;
 
@@ -136,6 +139,50 @@ export const GlowPresetControls: React.FC<GlowPresetControlsProps> = ({
   }, [presets, colorValue, strengthValue, radiusValue]);
 
   React.useEffect(() => {
+    if (selectedId && !presets.some((preset) => preset.id === selectedId)) {
+      setSelectedId('');
+    }
+  }, [presets, selectedId]);
+
+  const handleDelete = React.useCallback(async () => {
+    const currentId = selectedId || existingMatchingPreset?.id;
+    if (!currentId) {
+      toast.error('Bitte wähle zuerst ein Preset aus.');
+      return;
+    }
+    const preset = presets.find((p) => p.id === currentId);
+    if (!preset) {
+      toast.error('Preset wurde nicht gefunden.');
+      return;
+    }
+    const confirmed =
+      typeof window !== 'undefined'
+        ? window.confirm(`Preset "${preset.name}" wirklich löschen?`)
+        : true;
+    if (!confirmed) return;
+    try {
+      setDeletingPreset(true);
+      const res = await fetch(`/api/glow-presets/${preset.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        const message = json?.error || 'Glow-Preset konnte nicht gelöscht werden.';
+        throw new Error(message);
+      }
+      setPresets((prev) => prev.filter((p) => p.id !== preset.id));
+      setSelectedId((prev) => (prev === preset.id ? '' : prev));
+      toast.success(`Preset "${preset.name}" gelöscht.`);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unbekannter Fehler beim Löschen des Glow-Presets.';
+      toast.error(message);
+    } finally {
+      setDeletingPreset(false);
+    }
+  }, [selectedId, presets, existingMatchingPreset]);
+
+  React.useEffect(() => {
     if (existingMatchingPreset) {
       setSelectedId(existingMatchingPreset.id);
     }
@@ -145,18 +192,29 @@ export const GlowPresetControls: React.FC<GlowPresetControlsProps> = ({
     <div className='mt-3 space-y-2 rounded-md border border-slate-800/30 bg-slate-900/30 p-3'>
       <div className='flex items-center justify-between gap-2'>
         <p className='text-sm font-medium text-slate-100'>Glow-Presets</p>
-        <Button
-          variant='ghost'
-          size='sm'
-          onClick={() => void loadPresets()}
-          disabled={loadingPresets}
-        >
-          {loadingPresets ? 'Laden…' : 'Aktualisieren'}
-        </Button>
+        <div className='flex items-center gap-1.5'>
+          <Button
+            variant='ghost'
+            size='sm'
+            onClick={() => void loadPresets()}
+            disabled={loadingPresets}
+          >
+            {loadingPresets ? 'Laden…' : 'Aktualisieren'}
+          </Button>
+          <Button
+            variant='ghost'
+            size='icon'
+            onClick={() => void handleDelete()}
+            disabled={deletingPreset || (!selectedId && !existingMatchingPreset)}
+            aria-label='Preset löschen'
+          >
+            <Trash2 className='size-4' />
+          </Button>
+        </div>
       </div>
       <p className='text-xs text-slate-300'>Wähle ein Preset aus, um die gespeicherten Glow-Einstellungen anzuwenden.</p>
       <Select
-        value={selectedId}
+        value={selectedId || undefined}
         onValueChange={handleApply}
         disabled={!presets.length || loadingPresets}
       >
@@ -237,4 +295,3 @@ export const GlowPresetControls: React.FC<GlowPresetControlsProps> = ({
     </div>
   );
 };
-

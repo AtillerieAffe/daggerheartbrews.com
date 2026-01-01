@@ -24,6 +24,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useRouter } from 'next/navigation';
 import { useAdversaryActions, useCardActions } from '@/store';
 import { mergeCardSettings } from '@/lib/constants';
+import {
+  CARD_EXPORT_HEIGHT,
+  CARD_EXPORT_WIDTH,
+} from '@/lib/constants/card-layout';
 import { Checkbox } from '@/components/ui/checkbox';
 import type { CheckedState } from '@radix-ui/react-checkbox';
 import { toast } from 'sonner';
@@ -1330,10 +1334,22 @@ const renderCardPreviewToPng = async (
       throw new Error('Karten-Vorschau konnte nicht gerendert werden.');
     }
     await waitForImages(node);
+    const rect = node.getBoundingClientRect();
+    const baseWidth = rect.width || CARD_EXPORT_WIDTH;
+    const baseHeight = rect.height || CARD_EXPORT_HEIGHT;
+    const scale = CARD_EXPORT_WIDTH / baseWidth;
     return await toPng(node, {
       cacheBust: true,
-      pixelRatio: 2,
+      pixelRatio: 1,
+      width: CARD_EXPORT_WIDTH,
+      height: CARD_EXPORT_HEIGHT,
       imagePlaceholder: undefined,
+      style: {
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        width: `${baseWidth}px`,
+        height: `${baseHeight}px`,
+      },
     });
   } finally {
     root.unmount();

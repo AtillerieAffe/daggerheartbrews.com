@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     const name = (body.name || '').trim();
     const color = (body.color || '').trim();
-    const strength = Math.max(0, Math.min(1, Number(body.strength ?? 0.7)));
+    const strength = Math.max(0, Math.min(4, Number(body.strength ?? 0.7)));
     const radius = Math.max(0, Math.min(200, Number(body.radius ?? 12)));
     if (!name || !color) return bad(new Error('Missing name or color'), 400);
 
@@ -61,4 +61,3 @@ export async function POST(req: NextRequest) {
     return bad(e);
   }
 }
-
